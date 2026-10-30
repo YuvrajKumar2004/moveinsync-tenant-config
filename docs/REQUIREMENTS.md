@@ -74,4 +74,4 @@ All Java modules live under `backend/`; test paths below are relative to the mod
 | A4 | One-command run incl. database | `docker-compose.yml`, `backend/Dockerfile`; without Docker `scripts/run-local.sh` | ✅ `docker compose up --build` verified (Docker 29.9.2 / Compose v5.6.1): PostgreSQL 16.15 + both services healthy, change persisted and pushed, kill/restart of config-server recovered in 7 s |
 | D1 | README: how to run, assumptions, benchmark results, trade-offs | `README.md` | ✅ |
 | D2 | Public GitHub repository with meaningful commit history | local git repo with incremental commits | 🟡 needs a manual push (no remote configured) |
-| D3 | Demo video: main flows, one live failure, sample API calls | `docs/DEMO_SCRIPT.md` + `scripts/demo.sh` + Postman collection | 🟡 script ready; the video itself has to be recorded by a person |
+| D3 | Demo video: main flows, one live failure, sample API calls | `scripts/demo.sh` (every flow with curl) + Postman collection | 🟡 the video itself has to be recorded by a person |

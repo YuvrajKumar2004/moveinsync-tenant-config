@@ -9,7 +9,6 @@ MoveInSync case study 2 (SDE Java backend, Advanced Track). It has two parts:
 
 - Design note (architecture, sequence diagram, consistency model, failure-mode table): [docs/DESIGN.md](docs/DESIGN.md)
 - Requirement-by-requirement checklist with test evidence: [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)
-- Demo video script: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
 - Postman collection: [docs/postman/tenant-config.postman_collection.json](docs/postman/tenant-config.postman_collection.json)
 - curl walkthrough: [scripts/demo.sh](scripts/demo.sh)
 - Raw measurements: [docs/results/](docs/results/)
