@@ -33,9 +33,12 @@ wait_for() {
 case "${1:-start}" in
   stop) stop; exit 0 ;;
   start-server)
-    java -jar backend/config-server/target/config-server-1.0.0.jar --spring.profiles.active=local,demo > data/config-server.log 2>&1 &
+    # default: built-in H2 file database ("local" profile). Set CONFIG_PROFILES=demo plus DB_URL /
+    # DB_USER / DB_PASSWORD in .env to use a PostgreSQL server instead.
+    java -jar backend/config-server/target/config-server-1.0.0.jar --spring.profiles.active="${CONFIG_PROFILES:-local,demo}" > data/config-server.log 2>&1 &
     echo $! > data/config-server.pid
-    wait_for http://localhost:8080/actuator/health && echo "config-server up on :8080 (log: data/config-server.log)"
+    case ",${CONFIG_PROFILES:-local,demo}," in *,local,*) db="H2 file data/config-db" ;; *) db="$DB_URL" ;; esac
+    wait_for http://localhost:8080/actuator/health && echo "config-server up on :8080, database: $db (log: data/config-server.log)"
     exit 0 ;;
   stop-server)
     kill "$(cat data/config-server.pid)" 2>/dev/null || true; rm -f data/config-server.pid; echo "config-server stopped"

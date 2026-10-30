@@ -44,6 +44,26 @@ scripts/run-local.sh stop
 config server, for the failure demo. Requirements: JDK 21+ (built and tested on JDK 25.0.1) and
 bash + curl (Git Bash on Windows).
 
+### Without Docker, on a local PostgreSQL
+
+`run-local.sh` uses a built-in H2 file database by default. To use a PostgreSQL server you
+already have instead (tested with PostgreSQL 17 on Windows):
+
+1. Create an empty database, e.g. `CREATE DATABASE config;` (psql or pgAdmin).
+2. Add to the git-ignored `.env` (see the commented block in `.env.example`):
+   ```
+   CONFIG_PROFILES=demo
+   DB_URL=jdbc:postgresql://localhost:5432/config
+   DB_USER=postgres
+   DB_PASSWORD=<your password>
+   LOG_FORMAT=
+   FAULTS_ENABLED=true
+   ```
+3. `scripts/run-local.sh`. The startup line names the database; Flyway creates the tables on first start.
+
+In IntelliJ, use the VM option `-Dspring.profiles.active=demo` (instead of `local,demo`) for
+`ConfigServerApplication`. The `DB_*` values are read from `.env`.
+
 ### From IntelliJ IDEA (one click)
 
 1. Open the project folder in IntelliJ. If the Maven modules are not detected, right-click
