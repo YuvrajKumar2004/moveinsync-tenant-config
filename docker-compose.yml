@@ -19,7 +19,7 @@ services:
 
   config-server:
     build:
-      context: .
+      context: ./backend
       target: config-server
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/config
@@ -45,7 +45,7 @@ services:
 
   booking-service:
     build:
-      context: .
+      context: ./backend
       target: demo-booking-service
     environment:
       CONFIG_SERVER_URL: http://config-server:8080

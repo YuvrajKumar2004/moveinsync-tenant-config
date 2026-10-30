@@ -3,7 +3,7 @@
 Setup before recording:
 - Two terminals (A and B) in the repository root, plus Postman with
   `docs/postman/tenant-config.postman_collection.json` imported.
-- Run `./mvnw -DskipTests install` once.
+- Run `cd backend && ./mvnw -DskipTests install` once.
 - With Docker, use `scripts/init-env.sh && docker compose up --build`. Without it, use `scripts/run-local.sh` as shown below (it creates the git-ignored `.env` with random passwords on first run).
 - For Postman, copy the four `DEMO_*_PASSWORD` values from `.env` into the collection variables.
 
@@ -70,7 +70,7 @@ scripts/demo.sh isolation
 Terminal B: watch a fleet of 50 embedded clients.
 ```bash
 set -a; . ./.env; set +a
-java -jar load-simulator/target/load-simulator-1.0.0-all.jar watch --url http://localhost:8080 --clients 50
+java -jar backend/load-simulator/target/load-simulator-1.0.0-all.jar watch --url http://localhost:8080 --clients 50
 ```
 Terminal A:
 ```bash
@@ -101,8 +101,8 @@ Show `README.md` §3:
 
 Show the commands that reproduce them:
 ```bash
-./mvnw -Pscale -pl config-server test -Dtest='ScaleIT,LoadIT'
-java -jar benchmarks/target/benchmarks.jar
+(cd backend && ./mvnw -Pscale -pl config-server test -Dtest='ScaleIT,LoadIT')
+java -jar backend/benchmarks/target/benchmarks.jar
 ```
 
 ## 8. Postman (30 s)

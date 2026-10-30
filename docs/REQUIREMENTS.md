@@ -3,7 +3,7 @@
 Status: ✅ implemented and verified by an automated test that was run · 🟡 implemented, verified
 manually or only partly · ⛔ not verified (environment blocker).
 
-Test paths are relative to the module (`config-server/src/test/java/...` and so on).
+All Java modules live under `backend/`; test paths below are relative to the module (for example `backend/config-server/src/test/java/...`).
 
 ## I. Model settings and levels
 

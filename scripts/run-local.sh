@@ -33,7 +33,7 @@ wait_for() {
 case "${1:-start}" in
   stop) stop; exit 0 ;;
   start-server)
-    java -jar config-server/target/config-server-1.0.0.jar --spring.profiles.active=local,demo > data/config-server.log 2>&1 &
+    java -jar backend/config-server/target/config-server-1.0.0.jar --spring.profiles.active=local,demo > data/config-server.log 2>&1 &
     echo $! > data/config-server.pid
     wait_for http://localhost:8080/actuator/health && echo "config-server up on :8080 (log: data/config-server.log)"
     exit 0 ;;
@@ -42,10 +42,10 @@ case "${1:-start}" in
     exit 0 ;;
 esac
 
-if [[ ! -f config-server/target/config-server-1.0.0.jar ]]; then
-  ./mvnw -q -DskipTests install
+if [[ ! -f backend/config-server/target/config-server-1.0.0.jar ]]; then
+  (cd backend && ./mvnw -q -DskipTests install)
 fi
 "$0" start-server
-java -jar demo-booking-service/target/demo-booking-service-1.0.0.jar > data/booking-service.log 2>&1 &
+java -jar backend/demo-booking-service/target/demo-booking-service-1.0.0.jar > data/booking-service.log 2>&1 &
 echo $! > data/booking-service.pid
 wait_for http://localhost:8081/actuator/health && echo "booking-service up on :8081 (log: data/booking-service.log)"

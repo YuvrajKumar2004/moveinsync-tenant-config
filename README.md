@@ -34,7 +34,7 @@ empty database the server commits the case-study setting catalog as version 1.
 ### Without Docker
 
 ```bash
-./mvnw -DskipTests install
+(cd backend && ./mvnw -DskipTests install)
 scripts/run-local.sh            # server (H2 file DB, "local" profile) + booking service
 scripts/demo.sh                 # every main flow with curl
 scripts/run-local.sh stop
@@ -46,12 +46,15 @@ bash + curl (Git Bash on Windows).
 
 ### From IntelliJ IDEA (one click)
 
-1. Open the root `pom.xml` as a project.
+1. Open the project folder in IntelliJ. If the Maven modules are not detected, right-click
+   `backend/pom.xml` and choose **Add as Maven Project**.
 2. Run `scripts/init-env.sh` once in a Git Bash terminal.
-3. Create a **Compound** run configuration (call it *Whole application*) containing two
-   **Application** configurations, both with working directory = the project root:
+3. Create a **Compound** run configuration (call it *Whole application*). Put in it two
+   **Application** configurations, both with working directory = the project root (not `backend/`):
    - `ConfigServerApplication` with VM option `-Dspring.profiles.active=local,demo`
    - `BookingApplication`
+
+   Optionally add the npm script `dev` from `frontend/package.json` to the compound as well.
 4. Run *Whole application*.
 
 Both apps read their secrets from `.env` in the working directory
@@ -84,15 +87,15 @@ lists the variables.
 
 | What | Command | Runtime here |
 |---|---|---|
-| Build everything | `./mvnw -DskipTests install` | ~40 s |
-| Unit + integration tests (70) | `./mvnw clean verify` | ~1.5 min |
-| + scale and load tests (73) | `./mvnw -Pscale clean verify` | ~3 min |
-| Only the scale proofs | `./mvnw -Pscale -pl config-server test -Dtest='ScaleIT,LoadIT'` | ~1.5 min (after one `install`) |
-| JMH read benchmark | `java -jar benchmarks/target/benchmarks.jar` | ~4 min |
+| Build everything | `cd backend && ./mvnw -DskipTests install` | ~40 s |
+| Unit + integration tests (70) | `cd backend && ./mvnw clean verify` | ~1.5 min |
+| + scale and load tests (73) | `cd backend && ./mvnw -Pscale clean verify` | ~3 min |
+| Only the scale proofs | `cd backend && ./mvnw -Pscale -pl config-server test -Dtest='ScaleIT,LoadIT'` | ~1.5 min (after one `install`) |
+| JMH read benchmark | `java -jar backend/benchmarks/target/benchmarks.jar` | ~4 min |
 | Load `.env` for the simulator commands below | `set -a; . ./.env; set +a` | |
-| Propagation against a running server | `java -jar load-simulator/target/load-simulator-1.0.0-all.jar propagation --url http://localhost:8080 --clients 200 --rounds 10` | |
-| HTTP load against a running server | `java -jar load-simulator/target/load-simulator-1.0.0-all.jar load --url http://localhost:8080 --threads 32 --seconds 20` | |
-| Watch a fleet through a server kill | `java -jar load-simulator/target/load-simulator-1.0.0-all.jar watch --url http://localhost:8080 --clients 50` | |
+| Propagation against a running server | `java -jar backend/load-simulator/target/load-simulator-1.0.0-all.jar propagation --url http://localhost:8080 --clients 200 --rounds 10` | |
+| HTTP load against a running server | `java -jar backend/load-simulator/target/load-simulator-1.0.0-all.jar load --url http://localhost:8080 --threads 32 --seconds 20` | |
+| Watch a fleet through a server kill | `java -jar backend/load-simulator/target/load-simulator-1.0.0-all.jar watch --url http://localhost:8080 --clients 50` | |
 
 Integration tests start the real server (Tomcat, Spring Security, Flyway) against a **real PostgreSQL**
 (zonky embedded binaries, PostgreSQL 14.22), so no Docker is needed. `-Dtest.db=h2` switches them to
@@ -148,12 +151,19 @@ much a shared, thermally limited machine varies; the request path itself did not
 ## 4. How it works (short version; details in [DESIGN.md](docs/DESIGN.md))
 
 ```
-config-core        plain Java: types, validation, resolver, snapshots, version guard, diff, rollback
-config-server      Spring Boot: controller → service → repository; JWT; SSE hub; PostgreSQL change log
-config-client      embedded library: AtomicReference<Snapshot>, SSE + poll, disk copy, backoff
-demo-booking-service   the PDF's booking cut-off example as a consumer
-load-simulator     client fleets, propagation and HTTP load experiments, CLI
-benchmarks         JMH
+backend/                   Maven multi-module project (Java 21 target, Spring Boot 3.5)
+  config-core              plain Java: types, validation, resolver, snapshots, version guard, diff, rollback
+  config-server            Spring Boot: controller → service → repository; JWT; SSE hub; PostgreSQL change log
+  config-client            embedded library: AtomicReference<Snapshot>, SSE + poll, disk copy, backoff
+  demo-booking-service     the PDF's booking cut-off example as a consumer
+  load-simulator           client fleets, propagation and HTTP load experiments, CLI
+  benchmarks               JMH
+  Dockerfile, mvnw         build files
+frontend/                  React + Vite + Tailwind console (see §9)
+docs/                      design note, requirements checklist, demo script, Postman, results
+scripts/                   init-env.sh, run-local.sh, demo.sh
+docker-compose.yml         PostgreSQL + config server + booking service (builds from backend/)
+.env                       local secrets, git-ignored (created by scripts/init-env.sh)
 ```
 
 - **Model.** Six types: NUMBER, DURATION, TIME, TIME_WINDOW, ENUM, LIST. Each is a subclass of
