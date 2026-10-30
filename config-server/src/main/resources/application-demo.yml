@@ -1,0 +1,28 @@
+# Demo principals for local runs, docker compose and tests. Passwords are documented in the README
+# (they are demo-only). Production replaces this profile with the company identity provider.
+app:
+  security:
+    users:
+      - username: operator
+        password-hash: "{bcrypt}REDACTED"   # REDACTED
+        role: OPERATOR
+      - username: acme-admin
+        password-hash: "{bcrypt}REDACTED"   # REDACTED
+        role: ADMIN
+        tenant: acme
+      - username: globex-admin
+        password-hash: "{bcrypt}REDACTED"   # REDACTED
+        role: ADMIN
+        tenant: globex
+      - username: acme-employee
+        password-hash: "{bcrypt}REDACTED"   # REDACTED
+        role: EMPLOYEE
+        tenant: acme
+      - username: booking-service
+        password-hash: "{bcrypt}REDACTED"   # REDACTED
+        role: SERVICE
+        tenants: ["*"]
+      - username: acme-service
+        password-hash: "{bcrypt}REDACTED"   # REDACTED
+        role: SERVICE
+        tenants: ["acme"]

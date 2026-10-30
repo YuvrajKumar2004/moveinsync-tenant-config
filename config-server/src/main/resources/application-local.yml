@@ -1,0 +1,18 @@
+# No-Docker profile: file-based H2 in PostgreSQL mode, readable logs, faults endpoint on.
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/config-db;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password: ""
+
+logging:
+  structured:
+    format:
+      console: ${LOG_FORMAT:}
+
+app:
+  security:
+    # Local development only. Override with JWT_SECRET for anything shared.
+    jwt-secret: ${JWT_SECRET:REDACTED}
+  faults:
+    enabled: ${FAULTS_ENABLED:true}

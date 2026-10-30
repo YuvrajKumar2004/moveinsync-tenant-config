@@ -1,0 +1,70 @@
+spring:
+  application:
+    name: config-server
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/config}
+    username: ${DB_USER:config}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 3000
+  flyway:
+    locations: classpath:db/migration
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  mvc:
+    async:
+      request-timeout: -1
+
+server:
+  port: ${PORT:8080}
+  error:
+    include-stacktrace: never
+    include-message: never
+  tomcat:
+    max-connections: 10000
+    keep-alive-timeout: 60s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        config.commit.latency: true
+
+logging:
+  structured:
+    format:
+      console: ${LOG_FORMAT:ecs}
+  level:
+    root: INFO
+
+app:
+  security:
+    # Required: HMAC key for signing access tokens (>= 32 bytes). Never commit a real one.
+    jwt-secret: ${JWT_SECRET:}
+    token-ttl: PT1H
+    users: []
+  sync:
+    retained-events: 10000
+    heartbeat-interval: PT5S
+    max-subscribers: 5000
+    max-concurrent-full-snapshots: 8
+    snapshot-cache-entries: 256
+  bootstrap:
+    demo-catalog: true
+  faults:
+    enabled: ${FAULTS_ENABLED:false}
