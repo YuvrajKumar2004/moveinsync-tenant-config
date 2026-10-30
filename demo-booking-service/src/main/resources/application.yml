@@ -13,8 +13,8 @@ server:
 config:
   server-url: ${CONFIG_SERVER_URL:http://localhost:8080}
   username: ${CONFIG_SERVICE_USER:booking-service}
-  # demo-only default; set CONFIG_SERVICE_PASSWORD in any shared environment
-  password: ${CONFIG_SERVICE_PASSWORD:REDACTED}
+  # required, from the environment / .env (no default is committed)
+  password: ${CONFIG_SERVICE_PASSWORD}
   snapshot-file: ${CONFIG_SNAPSHOT_FILE:./data/booking-config.snapshot.json}
   poll-interval: PT2S
 
@@ -22,7 +22,8 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,prometheus,metrics
+        # metrics are opt-in (this demo service has no auth of its own); e.g. MANAGEMENT_EXPOSURE=health,prometheus
+        include: ${MANAGEMENT_EXPOSURE:health}
 
 logging:
   structured:

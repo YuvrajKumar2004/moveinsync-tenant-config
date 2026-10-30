@@ -55,12 +55,12 @@ Test paths are relative to the module (`config-server/src/test/java/...` and so 
 
 | # | Criterion | Implementation | Verification | Status |
 |---|---|---|---|---|
-| P1 | Authentication, roles (employee/admin/operator), tenant isolation | JWT (HS256), `SecurityConfig`, `AccessPolicy`, `TenantFilter` on snapshots/deltas/history | `TenantIsolationIT` (5), `ApiIT.authenticationIsRequired…`, `EndToEndIT.serviceClientOnlyReceivesItsTenantsData` | ✅ |
+| P1 | Authentication, roles (employee/admin/operator), tenant isolation | JWT (HS256), `SecurityConfig`, `AccessPolicy`, `TenantFilter` on snapshots/deltas/history | `TenantIsolationIT` (5), `ApiIT.authenticationIsRequired…`, `CredentialConfigurationTest` (no committed passwords/keys; users without a runtime password disabled; no start without a signing key), `EndToEndIT.serviceClientOnlyReceivesItsTenantsData` | ✅ |
 | P2 | Time/space complexity + benchmark + scaling limits | README §5, JMH, LoadIT | measured | ✅ |
 | P3 | Crashes, timeouts, duplicates, out-of-order, partial failures; failure-injection test | `FaultInjector`, idempotency keys, gap healing, handshake/idle timeouts, half-open detection | `EndToEndIT` (3 fault tests + kill), `ConfigClientTest` | ✅ |
 | P4 | OOP, controller/service/repository layering | `SettingType` hierarchy, `Constraint` interface, `ConfigTransport` interface (HTTP + fakes), sealed `Op`; `api` → `service` → `repository` | code | ✅ |
 | P5 | Trade-offs documented, what was left out | README §6, DESIGN §6 | ✅ |
-| P6 | Metrics and structured logging (lag, error rate, rejections, retries, queue depth) | `ConfigMetrics`, client `ClientMetrics` → Micrometer, ECS JSON logs with requestId | `ApiIT.metricsExposeOnCallCounters` | ✅ |
+| P6 | Metrics and structured logging (lag, error rate, rejections, retries, queue depth) | `ConfigMetrics`, client `ClientMetrics` → Micrometer, ECS JSON logs with requestId | `ApiIT.metricsExposeOnCallCountersToOperatorsOnly` (anonymous 401, non-operator 403) | ✅ |
 | P7 | Caching with eviction; what is stale, for how long | client snapshot; server LRU of filtered snapshots; event window; DESIGN §5 | ScaleIT (0 full snapshots on reconnect) | ✅ |
 | P8 | Non-leaking error messages, no PII in logs or errors | `GlobalExceptionHandler` (RFC 7807 + code + requestId), `PiiRedactor`, no body/query logging | `ApiIT.malformedRequestsGetGenericErrorsWithoutInternals`, `piiInReasonsIsNotEchoedInErrors`, `PiiRedactorTest` | ✅ |
 

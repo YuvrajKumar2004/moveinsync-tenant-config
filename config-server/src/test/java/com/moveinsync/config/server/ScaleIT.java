@@ -29,7 +29,7 @@ class ScaleIT {
     void propagationTo200SimulatedClientsIsUnderFiveSeconds() throws Exception {
         try (ServerHarness server = new ServerHarness().start()) {
             Api api = new Api(server.baseUrl());
-            AdminApi admin = new AdminApi(server.baseUrl(), "operator", "REDACTED");
+            AdminApi admin = new AdminApi(server.baseUrl(), "operator", Api.OPERATOR_PASSWORD);
             try (Fleet fleet = new Fleet(server.baseUrl(), api.token("booking-service"), Fleet.Options.defaults(200)).start()) {
                 long deadline = System.currentTimeMillis() + 15_000;
                 while (fleet.connectedStreams() < 200 && System.currentTimeMillis() < deadline) {

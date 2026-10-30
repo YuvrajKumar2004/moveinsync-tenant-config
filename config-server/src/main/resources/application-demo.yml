@@ -1,28 +1,30 @@
-# Demo principals for local runs, docker compose and tests. Passwords are documented in the README
-# (they are demo-only). Production replaces this profile with the company identity provider.
+# Demo principals for local runs, docker compose and tests. No credential is stored here: every password
+# comes from the environment (scripts/init-env.sh writes random ones to the git-ignored .env). A user
+# whose password is missing or shorter than 12 characters is disabled. Production replaces this profile
+# with the company identity provider.
 app:
   security:
     users:
       - username: operator
-        password-hash: "{bcrypt}REDACTED"   # REDACTED
+        password: ${DEMO_OPERATOR_PASSWORD:}
         role: OPERATOR
       - username: acme-admin
-        password-hash: "{bcrypt}REDACTED"   # REDACTED
+        password: ${DEMO_ADMIN_PASSWORD:}
         role: ADMIN
         tenant: acme
       - username: globex-admin
-        password-hash: "{bcrypt}REDACTED"   # REDACTED
+        password: ${DEMO_ADMIN_PASSWORD:}
         role: ADMIN
         tenant: globex
       - username: acme-employee
-        password-hash: "{bcrypt}REDACTED"   # REDACTED
+        password: ${DEMO_EMPLOYEE_PASSWORD:}
         role: EMPLOYEE
         tenant: acme
       - username: booking-service
-        password-hash: "{bcrypt}REDACTED"   # REDACTED
+        password: ${DEMO_SERVICE_PASSWORD:}
         role: SERVICE
         tenants: ["*"]
       - username: acme-service
-        password-hash: "{bcrypt}REDACTED"   # REDACTED
+        password: ${DEMO_SERVICE_PASSWORD:}
         role: SERVICE
         tenants: ["acme"]

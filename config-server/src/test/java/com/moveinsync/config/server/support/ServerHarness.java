@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Starts the real server (Tomcat + database) in-process on a fixed port so a test can kill it and start
@@ -16,7 +17,8 @@ import java.util.List;
  */
 public final class ServerHarness implements AutoCloseable {
 
-    public static final String JWT_SECRET = "REDACTED";
+    /** Random per test JVM, shared by every server started in it so tokens survive a restart (as in production). */
+    public static final String JWT_SECRET = UUID.randomUUID() + "-" + UUID.randomUUID();
 
     private final int port;
     private final TestDatabase.Db db;
@@ -37,6 +39,10 @@ public final class ServerHarness implements AutoCloseable {
                 "--spring.datasource.username=" + db.user(),
                 "--spring.datasource.password=" + db.password(),
                 "--app.security.jwt-secret=" + JWT_SECRET,
+                "--DEMO_OPERATOR_PASSWORD=" + Api.OPERATOR_PASSWORD,
+                "--DEMO_ADMIN_PASSWORD=" + Api.ADMIN_PASSWORD,
+                "--DEMO_EMPLOYEE_PASSWORD=" + Api.EMPLOYEE_PASSWORD,
+                "--DEMO_SERVICE_PASSWORD=" + Api.SERVICE_PASSWORD,
                 "--app.faults.enabled=true",
                 "--app.sync.heartbeat-interval=PT2S",
                 "--logging.structured.format.console=",

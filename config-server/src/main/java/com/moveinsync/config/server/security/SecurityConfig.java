@@ -31,7 +31,8 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(a -> a
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/token").permitAll()
-                        .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                        // only liveness/readiness are anonymous; metrics reveal tenant activity and need a token
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers("/actuator/**").hasRole("OPERATOR")
                         .requestMatchers("/api/v1/sync/**").hasAnyRole("SERVICE", "OPERATOR")
                         .requestMatchers("/api/v1/admin/**").hasRole("OPERATOR")

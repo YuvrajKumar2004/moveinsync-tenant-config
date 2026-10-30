@@ -11,17 +11,24 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /** Minimal JSON HTTP client for integration tests. */
 public final class Api {
 
+    /** Random per test JVM and handed to the server by {@link ServerHarness}: no credential is committed. */
+    public static final String OPERATOR_PASSWORD = "op-" + UUID.randomUUID();
+    public static final String ADMIN_PASSWORD = "admin-" + UUID.randomUUID();
+    public static final String EMPLOYEE_PASSWORD = "emp-" + UUID.randomUUID();
+    public static final String SERVICE_PASSWORD = "svc-" + UUID.randomUUID();
+
     public static final Map<String, String> PASSWORDS = Map.of(
-            "operator", "REDACTED",
-            "acme-admin", "REDACTED",
-            "globex-admin", "REDACTED",
-            "acme-employee", "REDACTED",
-            "booking-service", "REDACTED",
-            "acme-service", "REDACTED");
+            "operator", OPERATOR_PASSWORD,
+            "acme-admin", ADMIN_PASSWORD,
+            "globex-admin", ADMIN_PASSWORD,
+            "acme-employee", EMPLOYEE_PASSWORD,
+            "booking-service", SERVICE_PASSWORD,
+            "acme-service", SERVICE_PASSWORD);
 
     public static final ObjectMapper JSON = new ObjectMapper();
 

@@ -21,10 +21,13 @@ public record AppProperties(Security security, Sync sync, Bootstrap bootstrap, F
     }
 
     /**
-     * @param tenant  the client id for ADMIN/EMPLOYEE
-     * @param tenants client ids a SERVICE may read ("*" = all)
+     * @param password     plain password supplied at runtime (environment / .env, never committed); hashed
+     *                     with bcrypt on startup. Used when {@code passwordHash} is not set.
+     * @param passwordHash pre-hashed alternative in Spring's {id}hash format, e.g. {bcrypt}...
+     * @param tenant       the client id for ADMIN/EMPLOYEE
+     * @param tenants      client ids a SERVICE may read ("*" = all)
      */
-    public record User(String username, String passwordHash, Role role, String tenant, Set<String> tenants) {
+    public record User(String username, String password, String passwordHash, Role role, String tenant, Set<String> tenants) {
         public User {
             tenants = tenants == null ? Set.of() : tenants;
         }

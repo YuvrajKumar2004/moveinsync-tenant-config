@@ -157,9 +157,16 @@ class ApiIT {
     }
 
     @Test
-    void metricsExposeOnCallCounters() {
+    void metricsExposeOnCallCountersToOperatorsOnly() {
         api.post("/api/v1/change-sets", operator, Api.set("bad", "OFFICE", "acme", "blr-1", null, "booking.cutoff", "-1m"));
-        Api.Response m = api.get("/actuator/prometheus", null);
+        // anonymous and non-operator callers cannot read metrics; health stays open for probes
+        assertThat(api.get("/actuator/prometheus", null).status()).isEqualTo(401);
+        assertThat(api.get("/actuator/prometheus", api.token("acme-admin")).status()).isEqualTo(403);
+        assertThat(api.get("/actuator/prometheus", api.token("booking-service")).status()).isEqualTo(403);
+        assertThat(api.get("/actuator/info", null).status()).isEqualTo(401);
+        assertThat(api.get("/actuator/health", null).status()).isEqualTo(200);
+        assertThat(api.get("/actuator/health/liveness", null).status()).isEqualTo(200);
+        Api.Response m = api.get("/actuator/prometheus", operator);
         assertThat(m.status()).isEqualTo(200);
         assertThat(m.raw()).contains("config_version_current", "config_changes_rejected_total", "config_stream_subscribers",
                 "config_stream_queue_depth", "config_changes_committed_total");

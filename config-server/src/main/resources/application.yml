@@ -55,7 +55,7 @@ logging:
 
 app:
   security:
-    # Required: HMAC key for signing access tokens (>= 32 bytes). Never commit a real one.
+    # Required: HMAC key for signing access tokens (>= 32 bytes), from the environment only.
     jwt-secret: ${JWT_SECRET:}
     token-ttl: PT1H
     users: []

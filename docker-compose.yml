@@ -1,13 +1,14 @@
 # One command: docker compose up --build
 # Starts PostgreSQL, the config server (:8080) and the demo booking service (:8081).
-# All credentials below are local-demo defaults; override them through environment variables.
+# Secrets are never committed: create the git-ignored .env first with `scripts/init-env.sh`
+# (random values). Compose reads .env automatically and refuses to start if a value is missing.
 services:
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: config
       POSTGRES_USER: config
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-REDACTED}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?run scripts/init-env.sh to create .env}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U config -d config"]
       interval: 2s
@@ -23,8 +24,12 @@ services:
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/config
       DB_USER: config
-      DB_PASSWORD: ${DB_PASSWORD:-REDACTED}
-      JWT_SECRET: ${JWT_SECRET:-REDACTED}
+      DB_PASSWORD: ${DB_PASSWORD:?run scripts/init-env.sh to create .env}
+      JWT_SECRET: ${JWT_SECRET:?run scripts/init-env.sh to create .env}
+      DEMO_OPERATOR_PASSWORD: ${DEMO_OPERATOR_PASSWORD:?run scripts/init-env.sh to create .env}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:?run scripts/init-env.sh to create .env}
+      DEMO_EMPLOYEE_PASSWORD: ${DEMO_EMPLOYEE_PASSWORD:?run scripts/init-env.sh to create .env}
+      DEMO_SERVICE_PASSWORD: ${DEMO_SERVICE_PASSWORD:?run scripts/init-env.sh to create .env}
       SPRING_PROFILES_ACTIVE: demo
       FAULTS_ENABLED: ${FAULTS_ENABLED:-true}
     ports:
@@ -45,7 +50,7 @@ services:
     environment:
       CONFIG_SERVER_URL: http://config-server:8080
       CONFIG_SERVICE_USER: booking-service
-      CONFIG_SERVICE_PASSWORD: ${CONFIG_SERVICE_PASSWORD:-REDACTED}
+      CONFIG_SERVICE_PASSWORD: ${DEMO_SERVICE_PASSWORD:?run scripts/init-env.sh to create .env}
       CONFIG_SNAPSHOT_FILE: /app/data/booking-config.snapshot.json
     ports:
       - "8081:8081"

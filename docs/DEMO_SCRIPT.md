@@ -4,7 +4,8 @@ Setup before recording:
 - Two terminals (A and B) in the repository root, plus Postman with
   `docs/postman/tenant-config.postman_collection.json` imported.
 - Run `./mvnw -DskipTests install` once.
-- With Docker, use `docker compose up --build`. Without it, use `scripts/run-local.sh` as shown below.
+- With Docker, use `scripts/init-env.sh && docker compose up --build`. Without it, use `scripts/run-local.sh` as shown below (it creates the git-ignored `.env` with random passwords on first run).
+- For Postman, copy the four `DEMO_*_PASSWORD` values from `.env` into the collection variables.
 
 ## 0. Intro (30 s)
 Show `README.md` §4 and the architecture diagram in `docs/DESIGN.md`. Say it in one sentence: *one
@@ -17,7 +18,7 @@ Terminal A:
 scripts/run-local.sh
 ```
 Expected: `config-server up on :8080` and `booking-service up on :8081`.
-(Docker variant: `docker compose up --build`.)
+(Docker variant: `scripts/init-env.sh && docker compose up --build`.)
 
 ## 2. Example use case: Bengaluru cut-off (1.5 min)
 Terminal A:
@@ -68,6 +69,7 @@ scripts/demo.sh isolation
 ## 6. Live failure: kill the config server (2 min)
 Terminal B: watch a fleet of 50 embedded clients.
 ```bash
+set -a; . ./.env; set +a
 java -jar load-simulator/target/load-simulator-1.0.0-all.jar watch --url http://localhost:8080 --clients 50
 ```
 Terminal A:
@@ -87,7 +89,7 @@ scripts/demo.sh faults
 ```
 - Terminal B: streams climb back to 50/50, spread out by jitter, and the version catches up.
 - `faults`: with every push dropped, the change still reaches the booking service ("healed without
-  push after ~1.3 s"), and the Prometheus counters show `config_faults_push_dropped_total`,
+  push after ~1.3 s"), and the Prometheus counters (operator token required; anonymous gets 401) show `config_faults_push_dropped_total`,
   `config_changes_rejected_total`, `config_stream_subscribers` and `config_push_lag_seconds`.
 
 ## 7. Proof (1 min)

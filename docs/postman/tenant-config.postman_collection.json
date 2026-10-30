@@ -1,12 +1,16 @@
 {
   "info": {
     "name": "Hierarchical Tenant Configuration",
-    "description": "Run 'Auth' first: each login stores its token in a collection variable. Works against docker compose or scripts/run-local.sh.",
+    "description": "Fill the four password variables from your .env (scripts/init-env.sh), then run Auth first: each login stores its token in a collection variable. Works against docker compose or scripts/run-local.sh.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:8080" },
     { "key": "bookingUrl", "value": "http://localhost:8081" },
+    { "key": "operatorPassword", "value": "", "description": "DEMO_OPERATOR_PASSWORD from your .env" },
+    { "key": "adminPassword", "value": "", "description": "DEMO_ADMIN_PASSWORD from your .env" },
+    { "key": "employeePassword", "value": "", "description": "DEMO_EMPLOYEE_PASSWORD from your .env" },
+    { "key": "servicePassword", "value": "", "description": "DEMO_SERVICE_PASSWORD from your .env" },
     { "key": "operatorToken", "value": "" },
     { "key": "adminToken", "value": "" },
     { "key": "employeeToken", "value": "" },
@@ -19,16 +23,16 @@
       "item": [
         { "name": "Login operator", "event": [{ "listen": "test", "script": { "exec": ["pm.collectionVariables.set('operatorToken', pm.response.json().accessToken);"] } }],
           "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/auth/token",
-            "body": { "mode": "raw", "raw": "{\"username\":\"operator\",\"password\":\"REDACTED\"}" } } },
+            "body": { "mode": "raw", "raw": "{\"username\":\"operator\",\"password\":\"{{operatorPassword}}\"}" } } },
         { "name": "Login acme-admin", "event": [{ "listen": "test", "script": { "exec": ["pm.collectionVariables.set('adminToken', pm.response.json().accessToken);"] } }],
           "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/auth/token",
-            "body": { "mode": "raw", "raw": "{\"username\":\"acme-admin\",\"password\":\"REDACTED\"}" } } },
+            "body": { "mode": "raw", "raw": "{\"username\":\"acme-admin\",\"password\":\"{{adminPassword}}\"}" } } },
         { "name": "Login acme-employee", "event": [{ "listen": "test", "script": { "exec": ["pm.collectionVariables.set('employeeToken', pm.response.json().accessToken);"] } }],
           "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/auth/token",
-            "body": { "mode": "raw", "raw": "{\"username\":\"acme-employee\",\"password\":\"REDACTED\"}" } } },
+            "body": { "mode": "raw", "raw": "{\"username\":\"acme-employee\",\"password\":\"{{employeePassword}}\"}" } } },
         { "name": "Login booking-service", "event": [{ "listen": "test", "script": { "exec": ["pm.collectionVariables.set('serviceToken', pm.response.json().accessToken);"] } }],
           "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/auth/token",
-            "body": { "mode": "raw", "raw": "{\"username\":\"booking-service\",\"password\":\"REDACTED\"}" } } }
+            "body": { "mode": "raw", "raw": "{\"username\":\"booking-service\",\"password\":\"{{servicePassword}}\"}" } } }
       ]
     },
     {
@@ -91,7 +95,7 @@
           "url": "{{baseUrl}}/api/v1/admin/faults", "body": { "mode": "raw", "raw": "{\"dropPushes\":true,\"duplicatePushes\":false,\"outOfOrderPushes\":false}" } } },
         { "name": "Clear faults", "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }, { "key": "Content-Type", "value": "application/json" }],
           "url": "{{baseUrl}}/api/v1/admin/faults", "body": { "mode": "raw", "raw": "{\"dropPushes\":false,\"duplicatePushes\":false,\"outOfOrderPushes\":false}" } } },
-        { "name": "Prometheus metrics", "request": { "method": "GET", "url": "{{baseUrl}}/actuator/prometheus" } },
+        { "name": "Prometheus metrics (operator)", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }], "url": "{{baseUrl}}/actuator/prometheus" } },
         { "name": "Book 45 min ahead at blr-1", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
           "url": "{{bookingUrl}}/bookings", "body": { "mode": "raw", "raw": "{\"clientId\":\"acme\",\"officeId\":\"blr-1\",\"minutesBeforeDeparture\":45}" } } },
         { "name": "Booking service config status", "request": { "method": "GET", "url": "{{bookingUrl}}/config/status" } }

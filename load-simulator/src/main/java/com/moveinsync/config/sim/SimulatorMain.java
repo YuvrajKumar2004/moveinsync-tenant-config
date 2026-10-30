@@ -15,6 +15,8 @@ import java.util.Map;
  *   java -jar load-simulator-all.jar writes      --url http://localhost:8080 --threads 8  --seconds 10
  *   java -jar load-simulator-all.jar watch       --url http://localhost:8080 --clients 50
  * </pre>
+ * Credentials: --service-password / --operator-password, or DEMO_SERVICE_PASSWORD / DEMO_OPERATOR_PASSWORD
+ * from the environment (load .env first).
  * "watch" keeps a fleet connected and prints version, connected streams and the booking cut-off every
  * second: kill and restart the server while it runs to see reads continue and the fleet catch up.
  */
@@ -31,9 +33,9 @@ public final class SimulatorMain {
         }
         String url = opt.getOrDefault("url", "http://localhost:8080");
         String user = opt.getOrDefault("service-user", "booking-service");
-        String pass = opt.getOrDefault("service-password", "REDACTED");
+        String pass = secret(opt, "service-password", "DEMO_SERVICE_PASSWORD");
         String opUser = opt.getOrDefault("operator-user", "operator");
-        String opPass = opt.getOrDefault("operator-password", "REDACTED");
+        String opPass = secret(opt, "operator-password", "DEMO_OPERATOR_PASSWORD");
         AdminApi service = new AdminApi(url, user, pass);
 
         switch (args[0]) {
@@ -76,5 +78,15 @@ public final class SimulatorMain {
             }
             default -> System.out.println("unknown mode " + args[0]);
         }
+    }
+
+    /** Credentials come from a flag or the environment (.env), never from a built-in default. */
+    private static String secret(Map<String, String> opt, String flag, String envVar) {
+        String v = opt.getOrDefault(flag, System.getenv(envVar));
+        if (v == null || v.isBlank()) {
+            throw new IllegalArgumentException("set --" + flag + " or the " + envVar + " environment variable "
+                    + "(e.g. `set -a; . ./.env; set +a`)");
+        }
+        return v;
     }
 }

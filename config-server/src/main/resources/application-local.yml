@@ -11,8 +11,7 @@ logging:
       console: ${LOG_FORMAT:}
 
 app:
-  security:
-    # Local development only. Override with JWT_SECRET for anything shared.
-    jwt-secret: ${JWT_SECRET:REDACTED}
+  # The signing key has no default here either: JWT_SECRET comes from the environment / .env
+  # (scripts/run-local.sh creates one with scripts/init-env.sh).
   faults:
     enabled: ${FAULTS_ENABLED:true}

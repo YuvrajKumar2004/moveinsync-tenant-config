@@ -13,10 +13,15 @@ token() {
     -d "{\"username\":\"$1\",\"password\":\"$2\"}" | sed -n 's/.*"accessToken":"\([^"]*\)".*/\1/p'
 }
 
-OP=$(token operator REDACTED)
-ADMIN=$(token acme-admin REDACTED)
-EMP=$(token acme-employee REDACTED)
-[[ -n "$OP" ]] || { echo "cannot log in to $CFG - is the server running?"; exit 1; }
+# demo passwords live in the git-ignored .env written by scripts/init-env.sh
+ENV_FILE=${ENV_FILE:-"$(dirname "$0")/../.env"}
+[[ -f "$ENV_FILE" ]] || { echo "missing $ENV_FILE - run scripts/init-env.sh (and start the services with it)"; exit 1; }
+set -a; . "$ENV_FILE"; set +a
+
+OP=$(token operator "$DEMO_OPERATOR_PASSWORD")
+ADMIN=$(token acme-admin "$DEMO_ADMIN_PASSWORD")
+EMP=$(token acme-employee "$DEMO_EMPLOYEE_PASSWORD")
+[[ -n "$OP" ]] || { echo "cannot log in to $CFG - is the server running with the same .env?"; exit 1; }
 
 api() { # method path [token] [body]
   local m=$1 p=$2 t=${3:-$OP} b=${4:-}
@@ -99,7 +104,8 @@ faults() {
   curl -s "$BOOK/config/status"; echo
   api PUT /api/v1/admin/faults "$OP" '{"dropPushes":false,"duplicatePushes":false,"outOfOrderPushes":false}'
   step "   Metrics an on-call engineer would look at"
-  curl -s "$CFG/actuator/prometheus" | grep -E '^config_(version_current|changes_rejected_total|stream_subscribers|stream_queue_depth|faults_push_dropped_total|push_lag_seconds\{quantile)' | head -12
+  show "curl $CFG/actuator/prometheus   (anonymous -> $(curl -s -o /dev/null -w '%{http_code}' "$CFG/actuator/prometheus"); with operator token:)"
+  curl -s "$CFG/actuator/prometheus" -H "Authorization: Bearer $OP" | grep -E '^config_(version_current|changes_rejected_total|stream_subscribers|stream_queue_depth|faults_push_dropped_total|push_lag_seconds\{quantile)' | head -12
 }
 
 case "${1:-all}" in

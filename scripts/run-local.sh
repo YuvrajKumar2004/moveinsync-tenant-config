@@ -5,6 +5,11 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p data
 
+# secrets come from the git-ignored .env (random values, created on first run)
+[[ -f .env ]] || scripts/init-env.sh
+set -a; . ./.env; set +a
+export CONFIG_SERVICE_PASSWORD="$DEMO_SERVICE_PASSWORD"
+
 stop() {
   for name in config-server booking-service; do
     if [[ -f "data/$name.pid" ]]; then

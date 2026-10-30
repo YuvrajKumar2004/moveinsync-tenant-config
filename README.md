@@ -21,10 +21,11 @@ MoveInSync case study 2 (SDE Java backend, Advanced Track). It has two parts:
 ### One command (Docker)
 
 ```bash
-docker compose up --build
+scripts/init-env.sh && docker compose up --build
 ```
 
-This starts PostgreSQL 16, `config-server` on **:8080** and `demo-booking-service` on **:8081**. On an
+`init-env.sh` runs once to create the git-ignored `.env` with random secrets; after that,
+`docker compose up --build` on its own is the one command. It starts PostgreSQL 16, `config-server` on **:8080** and `demo-booking-service` on **:8081**. On an
 empty database the server commits the case-study setting catalog as version 1.
 
 > **Not verified on the build machine:** Docker is not installed there, so the compose file and
@@ -43,19 +44,25 @@ scripts/run-local.sh stop
 config server, for the failure demo. Requirements: JDK 21+ (built and tested on JDK 25.0.1) and
 bash + curl (Git Bash on Windows).
 
-### Demo users (demo profile only)
+### Secrets and demo users
 
-| user | password | role | tenant |
+No password, password hash or signing key is committed. `scripts/init-env.sh` writes a git-ignored
+`.env` with random values. Compose reads it automatically, and `scripts/run-local.sh` and
+`scripts/demo.sh` load it (`run-local.sh` creates it on first use). [`.env.example`](.env.example)
+lists the variables.
+
+| user (demo profile) | password variable in `.env` | role | tenant |
 |---|---|---|---|
-| `operator` | `REDACTED` | OPERATOR | all |
-| `acme-admin` / `globex-admin` | `REDACTED` | ADMIN | acme / globex |
-| `acme-employee` | `REDACTED` | EMPLOYEE | acme |
-| `booking-service` | `REDACTED` | SERVICE | `*` |
-| `acme-service` | `REDACTED` | SERVICE | acme |
+| `operator` | `DEMO_OPERATOR_PASSWORD` | OPERATOR | all |
+| `acme-admin` / `globex-admin` | `DEMO_ADMIN_PASSWORD` | ADMIN | acme / globex |
+| `acme-employee` | `DEMO_EMPLOYEE_PASSWORD` | EMPLOYEE | acme |
+| `booking-service` | `DEMO_SERVICE_PASSWORD` | SERVICE | `*` |
+| `acme-service` | `DEMO_SERVICE_PASSWORD` | SERVICE | acme |
 
-Only bcrypt hashes are committed (`application-demo.yml`). The JWT signing key comes from `JWT_SECRET`;
-the server refuses to start without one (≥ 32 bytes). The compose file and the `local` profile ship
-clearly labelled dev-only defaults.
+- A user whose password is missing or shorter than 12 characters is **disabled**.
+- The server refuses to start without `JWT_SECRET` (≥ 32 bytes).
+- Compose refuses to start if any value is missing.
+- Read your passwords with `grep DEMO_ .env`.
 
 ---
 
@@ -64,10 +71,11 @@ clearly labelled dev-only defaults.
 | What | Command | Runtime here |
 |---|---|---|
 | Build everything | `./mvnw -DskipTests install` | ~40 s |
-| Unit + integration tests (63) | `./mvnw clean verify` | ~1 min |
-| + scale and load tests (66) | `./mvnw -Pscale clean verify` | ~3 min |
+| Unit + integration tests (66) | `./mvnw clean verify` | ~1.5 min |
+| + scale and load tests (69) | `./mvnw -Pscale clean verify` | ~3 min |
 | Only the scale proofs | `./mvnw -Pscale -pl config-server test -Dtest='ScaleIT,LoadIT'` | ~1.5 min (after one `install`) |
 | JMH read benchmark | `java -jar benchmarks/target/benchmarks.jar` | ~4 min |
+| Load `.env` for the simulator commands below | `set -a; . ./.env; set +a` | |
 | Propagation against a running server | `java -jar load-simulator/target/load-simulator-1.0.0-all.jar propagation --url http://localhost:8080 --clients 200 --rounds 10` | |
 | HTTP load against a running server | `java -jar load-simulator/target/load-simulator-1.0.0-all.jar load --url http://localhost:8080 --threads 32 --seconds 20` | |
 | Watch a fleet through a server kill | `java -jar load-simulator/target/load-simulator-1.0.0-all.jar watch --url http://localhost:8080 --clients 50` | |
@@ -113,13 +121,13 @@ Ranges cover the two full runs recorded in `docs/results/measurements.txt`.
 
 ### HTTP load (LoadIT, PostgreSQL, closed loop, same machine)
 
-Two runs on the same laptop; the second ran straight after a full build and test cycle, which shows
-how much a shared, thermally limited machine varies.
+Three runs on the same laptop, run straight after full build and test cycles. The spread shows how
+much a shared, thermally limited machine varies; the request path itself did not change between runs.
 
 | Endpoint | Threads | Throughput | p50 | p99 | Errors |
 |---|---|---|---|---|---|
-| `GET /api/v1/resolve?…&explain=true` | 32 | **7,302 – 13,534 req/s** | 1.85 – 3.27 ms | 9.6 – 32.4 ms | 0 |
-| `POST /api/v1/change-sets` (validate + row lock + insert + push) | 8 | **532 – 1,344 commits/s** | 5.8 – 14.9 ms | 7.7 – 18.6 ms | 0 |
+| `GET /api/v1/resolve?…&explain=true` | 32 | **4,025 – 13,534 req/s** | 1.85 – 6.87 ms | 9.6 – 32.4 ms | 0 |
+| `POST /api/v1/change-sets` (validate + row lock + insert + push) | 8 | **508 – 1,344 commits/s** | 5.8 – 15.7 ms | 7.7 – 19.3 ms | 0 |
 
 ---
 
@@ -168,11 +176,13 @@ benchmarks         JMH
 | `POST /api/v1/rollback` `{level: GLOBAL\|CLIENT, clientId, toVersion, dryRun}` | OPERATOR; ADMIN for own client | scoped rollback with diff |
 | `GET /api/v1/sync/version`, `/delta?since=N`, `/snapshot`, `/stream` (SSE) | SERVICE, OPERATOR | client library protocol (tenant-filtered) |
 | `GET/PUT /api/v1/admin/faults` | OPERATOR, only if `FAULTS_ENABLED` | failure injection |
-| `/actuator/health`, `/actuator/prometheus` | public (restrict at the network edge) | probes + metrics |
+| `/actuator/health` (+ `/liveness`, `/readiness`) | public | probes |
+| `/actuator/prometheus`, `/actuator/metrics`, `/actuator/info` | OPERATOR (bearer token) | metrics |
 
 ```bash
+set -a; . ./.env; set +a
 TOKEN=$(curl -s -X POST localhost:8080/api/v1/auth/token -H 'Content-Type: application/json' \
-  -d '{"username":"operator","password":"REDACTED"}' | sed -n 's/.*"accessToken":"\([^"]*\)".*/\1/p')
+  -d "{\"username\":\"operator\",\"password\":\"$DEMO_OPERATOR_PASSWORD\"}" | sed -n 's/.*"accessToken":"\([^"]*\)".*/\1/p')
 curl -s -X POST localhost:8080/api/v1/change-sets -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"reason":"shorter cut-off","ops":[{"op":"SET","level":"OFFICE","clientId":"acme","officeId":"blr-1","key":"booking.cutoff","value":"30m"}]}'
 curl -s "localhost:8080/api/v1/resolve?clientId=acme&officeId=blr-1&key=booking.cutoff&explain=true" -H "Authorization: Bearer $TOKEN"
@@ -277,12 +287,18 @@ Let K = settings, O = overrides, o_k = overrides of one key, E = events retained
 - Integration tests ran on embedded PostgreSQL **14.22**; compose uses **16**. The SQL is plain
   (no 16-only features).
 - All measurements ran on one laptop, with client and server competing for the same CPU.
-- `/actuator/prometheus` is unauthenticated for scraping; restrict it at the network edge in production.
-- Demo credentials and default secrets are for local use only.
+- Metrics need an OPERATOR bearer token, and tokens expire after 1 h. A production Prometheus would
+  get a dedicated long-lived scrape credential, or a management port reachable only from the
+  monitoring network. That is not implemented.
+- The booking demo service has no authentication of its own, so its actuator exposes only `health`
+  (opt in with `MANAGEMENT_EXPOSURE=health,prometheus`).
+- Commits made before the security hardening contain the old demo passwords, their bcrypt hashes and
+  the fallback signing keys. None of them is accepted by the current code (the users and keys now come
+  only from `.env`). Rewrite or squash that history before publishing if it must not contain them at all.
 
 ## 8. Monitoring (what to look at at 3 AM)
 
-**Server** (`/actuator/prometheus`):
+**Server** (`/actuator/prometheus`, OPERATOR token):
 - `config_version_current`
 - `config_changes_committed_total{kind}` and `config_changes_rejected_total{reason=validation|conflict|forbidden}`
 - `config_errors_total`
