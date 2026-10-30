@@ -333,3 +333,55 @@ Let K = settings, O = overrides, o_k = overrides of one key, E = events retained
 Logs are structured (ECS JSON by default; `LOG_FORMAT=` gives plain text) and carry a `requestId`.
 Request bodies, query strings and headers are never logged, and free text (change reasons) passes
 through a PII redactor (emails, phone numbers) before any log line or error response.
+
+## 9. Frontend console (`frontend/`)
+
+React 19 + Vite 7 + Tailwind 4 dashboard:
+- dashboard;
+- GLOBAL → CLIENT → OFFICE → SHIFT explorer (effective value, where it comes from, inheritance chain);
+- editing, including atomic multi-key change sets;
+- history with diffs and scoped rollback;
+- staged rollouts (stage, promote, abort);
+- settings catalog;
+- live updates;
+- booking-service status and a "try a booking" form;
+- operator metrics and fault switches.
+
+### Run on Windows (Git Bash)
+
+1. Start the backend: `scripts/run-local.sh` (or **Whole application** in IntelliJ). The config server runs on :8080, the booking service on :8081.
+2. Start the frontend:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+3. Open http://localhost:5173 and sign in. The passwords are the `DEMO_*_PASSWORD` values in the root `.env`.
+4. Production build:
+   ```bash
+   npm run build
+   ```
+5. Serve the build:
+   ```bash
+   npm run preview
+   ```
+   It is served at http://localhost:4173 with the same proxy.
+6. Unit tests:
+   ```bash
+   npm test
+   ```
+
+Proxy targets come from `frontend/.env.local`; see `frontend/.env.example`, which contains placeholders only.
+
+### Backend limitations that shape the UI (no backend code was changed)
+
+- **No CORS on the config server.** The browser reaches it through the Vite dev/preview proxy (`/api`, `/actuator`, and `/booking-api` → :8081). Hosting the built files elsewhere needs a reverse proxy, or CORS on the server.
+- **The SSE stream accepts only `Authorization: Bearer` and only the SERVICE or OPERATOR role.**
+  - Operators get real SSE through a streamed `fetch()` with the header. `EventSource` can't send headers, and putting the token in the URL would leak it.
+  - Admins and employees get a 403 from the stream, so the UI polls `/api/v1/resolve` (`snapshotVersion`) every 5 s instead.
+- **No endpoint lists clients, offices or shifts.**
+  - The explorer lists scopes that hold values (from `/sync/snapshot` for operators, or from tenant history for admins).
+  - Any scope ID can also be typed in.
+- **Tokens and the booking service.**
+  - The access token is kept in `sessionStorage` for the tab only. No credentials are bundled with the app.
+  - The demo booking service has no authentication of its own.

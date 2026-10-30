@@ -1,0 +1,28 @@
+{
+  "name": "moveinsync-config-console",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Configuration management console for the hierarchical tenant configuration service",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "lucide-react": "0.545.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "react-router-dom": "7.9.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.1.14",
+    "@testing-library/react": "16.3.0",
+    "@vitejs/plugin-react": "5.0.4",
+    "jsdom": "27.0.0",
+    "tailwindcss": "4.1.14",
+    "vite": "7.1.12",
+    "vitest": "3.2.4"
+  }
+}
