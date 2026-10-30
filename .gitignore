@@ -1,0 +1,26 @@
+# Build output
+target/
+out/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Runtime data (local H2 files, client snapshots, logs, benchmark raw output)
+data/
+*.snapshot.json
+*.log
+jmh-result*.json
+
+# Secrets / local env
+.env
+*.pem
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
