@@ -84,8 +84,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<ProblemDetail> illegalArgument(IllegalArgumentException e) {
-        // only our own domain constructors throw this on bad scope/context input; messages are ours
-        return of(HttpStatus.BAD_REQUEST, "BAD_REQUEST", e.getMessage(), null);
+        // our domain constructors (Scope, ResolutionContext) throw this on bad input with messages we wrote;
+        // anything thrown by a library gets a generic message so internals never leak
+        StackTraceElement[] st = e.getStackTrace();
+        boolean ours = st.length > 0 && st[0].getClassName().startsWith("com.moveinsync.");
+        return of(HttpStatus.BAD_REQUEST, "BAD_REQUEST", ours ? e.getMessage() : "invalid request", null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

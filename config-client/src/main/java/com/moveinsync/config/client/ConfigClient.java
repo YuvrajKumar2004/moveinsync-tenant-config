@@ -118,7 +118,8 @@ public final class ConfigClient implements AutoCloseable {
                 running.set(false);
                 throw new IllegalStateException("config server unreachable and no snapshot on disk", e);
             }
-            log.warn("[{}] server unreachable at startup ({}); serving snapshot v{}", name, e.getMessage(), holder.version());
+            log.warn("[{}] server unreachable at startup ({}); serving snapshot v{}", name,
+                    e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage(), holder.version());
         }
         streamThread = Thread.ofVirtual().name("config-stream-" + name).start(this::streamLoop);
         pollThread = Thread.ofVirtual().name("config-poll-" + name).start(this::pollLoop);
