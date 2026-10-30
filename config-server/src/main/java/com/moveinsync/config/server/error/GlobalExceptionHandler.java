@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.http.converter.HttpMessageNotWritableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -17,7 +18,11 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.http.MediaType;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -118,6 +123,21 @@ public class GlobalExceptionHandler {
         // an SSE subscriber disconnected mid-write; nothing to answer
     }
 
+    @ExceptionHandler(AsyncRequestTimeoutException.class)
+    ResponseEntity<Void> streamTimeout(AsyncRequestTimeoutException e) {
+        // an SSE stream reached its lifetime; the client reconnects and resumes from its version
+        return ResponseEntity.noContent().build();
+    }
+
+    @ExceptionHandler(HttpMessageNotWritableException.class)
+    ResponseEntity<ProblemDetail> notWritable(HttpMessageNotWritableException e) {
+        if (isEventStream()) {
+            // an error on an SSE request: the status alone is answered (see of())
+            return of(HttpStatus.SERVICE_UNAVAILABLE, "STREAM_ERROR", "stream failed", null);
+        }
+        return unexpected(e);
+    }
+
     @ExceptionHandler(Exception.class)
     ResponseEntity<ProblemDetail> unexpected(Exception e) {
         metrics.error("unexpected");
@@ -130,6 +150,18 @@ public class GlobalExceptionHandler {
         if (status == HttpStatus.SERVICE_UNAVAILABLE) {
             b.header("Retry-After", "1");
         }
+        if (isEventStream()) {
+            // a problem body cannot be written on an SSE response; status + code header is enough for the client
+            return b.header("X-Error-Code", code).build();
+        }
         return b.body(ProblemWriter.problem(status, code, message, violations));
+    }
+
+    private static boolean isEventStream() {
+        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs) {
+            String accept = attrs.getRequest().getHeader("Accept");
+            return accept != null && accept.contains(MediaType.TEXT_EVENT_STREAM_VALUE);
+        }
+        return false;
     }
 }

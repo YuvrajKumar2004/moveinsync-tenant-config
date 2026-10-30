@@ -31,7 +31,7 @@ public record AppProperties(Security security, Sync sync, Bootstrap bootstrap, F
     }
 
     public record Sync(int retainedEvents, Duration heartbeatInterval, int maxSubscribers,
-                       int maxConcurrentFullSnapshots, int snapshotCacheEntries) {
+                       int maxConcurrentFullSnapshots, int snapshotCacheEntries, Duration streamLifetime) {
     }
 
     public record Bootstrap(boolean demoCatalog) {

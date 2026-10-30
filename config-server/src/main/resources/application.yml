@@ -17,18 +17,19 @@ spring:
     default-property-inclusion: non_null
     serialization:
       write-dates-as-timestamps: false
-  mvc:
-    async:
-      request-timeout: -1
+  lifecycle:
+    timeout-per-shutdown-phase: 10s
 
 server:
   port: ${PORT:8080}
+  shutdown: graceful
   error:
     include-stacktrace: never
     include-message: never
   tomcat:
     max-connections: 10000
     keep-alive-timeout: 60s
+    accept-count: 1000
 
 management:
   endpoints:
@@ -64,6 +65,7 @@ app:
     max-subscribers: 5000
     max-concurrent-full-snapshots: 8
     snapshot-cache-entries: 256
+    stream-lifetime: PT30M
   bootstrap:
     demo-catalog: true
   faults:

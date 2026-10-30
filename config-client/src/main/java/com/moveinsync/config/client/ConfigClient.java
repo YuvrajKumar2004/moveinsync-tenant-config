@@ -47,6 +47,7 @@ import java.util.function.Consumer;
 public final class ConfigClient implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(ConfigClient.class);
+    private static final long HANDSHAKE_TIMEOUT_MILLIS = 5_000;
 
     private final ConfigTransport transport;
     private final SnapshotStore store;
@@ -54,6 +55,7 @@ public final class ConfigClient implements AutoCloseable {
     private final Duration streamIdleTimeout;
     private final Backoff backoff;
     private final boolean requireInitialData;
+    private final Duration initialSyncTimeout;
     private final String name;
 
     private final SnapshotHolder holder = new SnapshotHolder(Snapshot.empty());
@@ -76,6 +78,7 @@ public final class ConfigClient implements AutoCloseable {
         this.streamIdleTimeout = b.streamIdleTimeout;
         this.backoff = new Backoff(b.backoffBase, b.backoffCap);
         this.requireInitialData = b.requireInitialData;
+        this.initialSyncTimeout = b.initialSyncTimeout;
         this.name = b.name;
     }
 
@@ -108,7 +111,7 @@ public final class ConfigClient implements AutoCloseable {
             }
         }
         try {
-            catchUp();
+            initialSync();
         } catch (IOException e) {
             metrics.syncErrors.incrementAndGet();
             if (holder.version() == 0 && requireInitialData) {
@@ -120,6 +123,32 @@ public final class ConfigClient implements AutoCloseable {
         streamThread = Thread.ofVirtual().name("config-stream-" + name).start(this::streamLoop);
         pollThread = Thread.ofVirtual().name("config-poll-" + name).start(this::pollLoop);
         return this;
+    }
+
+    /**
+     * One sync at startup, retried with jittered backoff for up to {@code initialSyncTimeout} when it is
+     * worth waiting: the server answered "busy" (503 / 429), or the connection failed and there is no disk
+     * copy to serve instead (e.g. hundreds of instances cold-starting at once overflow the accept queue).
+     * With a disk copy, an unreachable server fails at once so startup is not delayed.
+     */
+    private void initialSync() throws IOException {
+        long deadline = System.currentTimeMillis() + initialSyncTimeout.toMillis();
+        for (int attempt = 0; ; attempt++) {
+            try {
+                catchUp();
+                return;
+            } catch (IOException e) {
+                long retryAfter = e instanceof HttpStatusException h ? h.retryAfterMillis() : 0;
+                boolean busy = e instanceof HttpStatusException h && (h.status() == 503 || h.status() == 429);
+                boolean nothingToServe = holder.version() == 0 && !(e instanceof HttpStatusException);
+                long wait = retryAfter + backoff.delayMillis(attempt);
+                if (!(busy || nothingToServe) || System.currentTimeMillis() + wait > deadline) {
+                    throw e;
+                }
+                metrics.syncErrors.incrementAndGet();
+                sleep(wait);
+            }
+        }
     }
 
     @Override
@@ -363,9 +392,12 @@ public final class ConfigClient implements AutoCloseable {
                 metrics.syncErrors.incrementAndGet();
                 failures = Math.min(failures + 1, 30);
             }
-            // a silent stream (half-open TCP) is closed so the stream loop reconnects
+            // a stream that never delivered its first event, or went silent (half-open TCP), is closed so the
+            // stream loop reconnects; the server sends a heartbeat immediately and then periodically
             ConfigTransport.StreamHandle h = currentStream;
-            if (h != null && System.currentTimeMillis() - lastStreamActivity > streamIdleTimeout.toMillis()) {
+            long silentFor = System.currentTimeMillis() - lastStreamActivity;
+            long limit = streamConnected ? streamIdleTimeout.toMillis() : HANDSHAKE_TIMEOUT_MILLIS;
+            if (h != null && silentFor > limit) {
                 h.close();
             }
         }
@@ -423,6 +455,7 @@ public final class ConfigClient implements AutoCloseable {
         private Duration backoffCap = Duration.ofSeconds(10);
         private Duration requestTimeout = Duration.ofSeconds(5);
         private boolean requireInitialData = true;
+        private Duration initialSyncTimeout = Duration.ofSeconds(15);
         private String name = "config";
         private String serverUrl;
         private TokenProvider tokens;
@@ -482,6 +515,11 @@ public final class ConfigClient implements AutoCloseable {
 
         public Builder requireInitialData(boolean require) {
             this.requireInitialData = require;
+            return this;
+        }
+
+        public Builder initialSyncTimeout(Duration d) {
+            this.initialSyncTimeout = d;
             return this;
         }
 

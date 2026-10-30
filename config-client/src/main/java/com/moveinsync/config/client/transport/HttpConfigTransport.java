@@ -58,7 +58,9 @@ public final class HttpConfigTransport implements ConfigTransport {
 
     @Override
     public void stream(long since, StreamListener listener, StreamHandle handle) throws IOException {
-        HttpRequest req = request("/api/v1/sync/stream?since=" + since).header("Accept", "text/event-stream").GET().build();
+        // the timeout covers the handshake (until response headers); the body itself streams indefinitely
+        HttpRequest req = request("/api/v1/sync/stream?since=" + since).timeout(requestTimeout)
+                .header("Accept", "text/event-stream").GET().build();
         HttpResponse<Stream<String>> res = send(req, HttpResponse.BodyHandlers.ofLines());
         try (Stream<String> lines = res.body()) {
             check(res);

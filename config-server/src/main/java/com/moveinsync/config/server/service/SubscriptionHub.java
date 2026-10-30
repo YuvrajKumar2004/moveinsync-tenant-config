@@ -10,6 +10,9 @@ import com.moveinsync.config.server.security.AuthUser;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.SmartLifecycle;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -43,6 +46,7 @@ public class SubscriptionHub implements ChangePublisher {
     private final ConfigMetrics metrics;
     private final FaultInjector faults;
     private final int maxSubscribers;
+    private final long streamLifetimeMillis;
     private final Set<Subscriber> subscribers = ConcurrentHashMap.newKeySet();
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
@@ -66,6 +70,7 @@ public class SubscriptionHub implements ChangePublisher {
         this.metrics = metrics;
         this.faults = faults;
         this.maxSubscribers = props.sync().maxSubscribers();
+        this.streamLifetimeMillis = props.sync().streamLifetime() == null ? 30 * 60_000L : props.sync().streamLifetime().toMillis();
     }
 
     public SseEmitter subscribe(AuthUser user, long since) {
@@ -73,7 +78,9 @@ public class SubscriptionHub implements ChangePublisher {
             metrics.handshakeRejected("capacity");
             throw ApiException.unavailable("too many subscribers; retry with backoff");
         }
-        SseEmitter emitter = new SseEmitter(0L); // no server timeout: heartbeats detect dead peers
+        // Streams are retired after a bounded lifetime; the client reconnects and resumes from its version.
+        // That also rebalances connections after a restart and frees anything a half-dead peer holds.
+        SseEmitter emitter = new SseEmitter(streamLifetimeMillis);
         Subscriber s = new Subscriber(emitter, user.readFilter(), Math.max(0, since));
         emitter.onCompletion(() -> remove(s));
         emitter.onTimeout(() -> remove(s));
@@ -81,18 +88,17 @@ public class SubscriptionHub implements ChangePublisher {
         subscribers.add(s);
         metrics.subscribers().set(subscribers.size());
         long current = state.version();
-        schedule(() -> {
-            synchronized (s) {
-                if (s.lastSent > current) {
-                    // client is ahead of this server (e.g. restored from an older backup): tell it our version
-                    send(s, "heartbeat", null, json.write(Map.of("version", current)));
-                    s.lastSent = current;
-                    return;
-                }
+        // Backlog and first heartbeat are written before the emitter is returned: Spring buffers these early
+        // sends and flushes them in order when the response starts, so the client sees headers + data at once.
+        synchronized (s) {
+            if (s.lastSent > current) {
+                // client is ahead of this server (e.g. restored from an older backup): tell it our version
+                s.lastSent = current;
+            } else {
                 deliver(s, current);
-                send(s, "heartbeat", null, json.write(Map.of("version", current)));
             }
-        });
+            send(s, "heartbeat", null, json.write(Map.of("version", current)));
+        }
         return emitter;
     }
 
@@ -201,6 +207,53 @@ public class SubscriptionHub implements ChangePublisher {
 
     public int subscriberCount() {
         return subscribers.size();
+    }
+
+    /**
+     * Runs before the web server's graceful shutdown (higher phase stops first): open SSE responses never
+     * finish on their own, so they are completed here and clients reconnect elsewhere / later.
+     */
+    @Bean
+    static SmartLifecycle subscriptionHubCloser(@Lazy SubscriptionHub hub) {
+        return new SmartLifecycle() {
+            private volatile boolean running = true;
+
+            @Override
+            public void start() {
+                running = true;
+            }
+
+            @Override
+            public void stop() {
+                hub.completeAll();
+                running = false;
+            }
+
+            @Override
+            public boolean isRunning() {
+                return running;
+            }
+
+            @Override
+            public int getPhase() {
+                return Integer.MAX_VALUE;
+            }
+        };
+    }
+
+    void completeAll() {
+        for (Subscriber s : subscribers) {
+            synchronized (s) {
+                s.closed = true;
+                try {
+                    s.emitter.complete();
+                } catch (RuntimeException ignored) {
+                    // connection already gone
+                }
+            }
+        }
+        subscribers.clear();
+        metrics.subscribers().set(0);
     }
 
     @PreDestroy

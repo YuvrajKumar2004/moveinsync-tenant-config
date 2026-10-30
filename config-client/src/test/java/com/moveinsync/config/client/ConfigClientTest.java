@@ -30,7 +30,8 @@ class ConfigClientTest {
 
     private ConfigClient client(FakeServer server, Path file) {
         ConfigClient c = ConfigClient.builder().transport(server).snapshotFile(file)
-                .pollInterval(Duration.ofMillis(300)).backoff(Duration.ofMillis(20), Duration.ofMillis(200)).name("t").build();
+                .pollInterval(Duration.ofMillis(300)).backoff(Duration.ofMillis(20), Duration.ofMillis(200))
+                .initialSyncTimeout(Duration.ofMillis(300)).name("t").build();
         clients.add(c);
         return c;
     }
@@ -137,7 +138,8 @@ class ConfigClientTest {
         server.down = true;
         assertThatThrownBy(() -> client(server, dir.resolve("missing.json")).start())
                 .isInstanceOf(IllegalStateException.class);
-        ConfigClient lenient = ConfigClient.builder().transport(server).requireInitialData(false).build();
+        ConfigClient lenient = ConfigClient.builder().transport(server).requireInitialData(false)
+                .initialSyncTimeout(Duration.ofMillis(300)).build();
         clients.add(lenient);
         assertThat(lenient.start().version()).isZero();
     }
