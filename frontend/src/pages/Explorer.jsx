@@ -104,7 +104,7 @@ export default function Explorer() {
 
         <div className="min-w-0 space-y-5">
           <Breadcrumb contexts={[...contexts].reverse()} current={label} onGo={go} />
-          <DraftPanel baseVersion={snapshotVersion} onCommitted={() => chain.reload()} />
+          <DraftPanel onCommitted={() => chain.reload()} />
 
           <Card
             title={<span className="flex items-center gap-2">{(() => { const I = LEVEL_ICON[level]; return <I className="h-4 w-4 text-indigo-500" /> })()}{label}</span>}
@@ -168,11 +168,11 @@ export default function Explorer() {
 
       {editing && (
         <EditModal def={editing.def} resolved={editing.resolved} contexts={contexts.filter(writable)} version={snapshotVersion}
-          onClose={() => setEditing(null)} onCommitted={() => { setEditing(null); chain.reload() }} onDraft={(op) => { draft.add(op); setEditing(null) }} />
+          onClose={() => setEditing(null)} onCommitted={() => { setEditing(null); chain.reload() }} onDraft={(op, v) => { draft.add(op, v); setEditing(null) }} />
       )}
       {removing && (
         <RemoveModal def={removing.def} ctx={ctx} version={snapshotVersion}
-          onClose={() => setRemoving(null)} onCommitted={() => { setRemoving(null); chain.reload() }} onDraft={(op) => { draft.add(op); setRemoving(null) }} />
+          onClose={() => setRemoving(null)} onCommitted={() => { setRemoving(null); chain.reload() }} onDraft={(op, v) => { draft.add(op, v); setRemoving(null) }} />
       )}
     </>
   )
@@ -290,7 +290,9 @@ function ScopeTree({ tree, ctx, onGo, caps }) {
   )
 }
 
-function EditModal({ def, resolved, contexts, version, onClose, onCommitted, onDraft }) {
+function EditModal({ def, resolved, contexts, version: seenVersion, onClose, onCommitted, onDraft }) {
+  // the lock is against the version the user saw when opening the dialog, not later live refreshes
+  const [version] = useState(seenVersion)
   const { api } = useAuth()
   const toast = useToast()
   const [target, setTarget] = useState(scopeLabel(contexts[0] || {}))
@@ -325,7 +327,7 @@ function EditModal({ def, resolved, contexts, version, onClose, onCommitted, onD
   return (
     <Modal open title={`Edit ${def.key}`} onClose={onClose}
       footer={<>
-        <Button variant="secondary" onClick={() => (problem ? setError({ message: problem }) : onDraft(op))}>Add to change set</Button>
+        <Button variant="secondary" onClick={() => (problem ? setError({ message: problem }) : onDraft(op, version))}>Add to change set</Button>
         <Button loading={busy} onClick={save}>Save now</Button>
       </>}>
       <div className="space-y-4">
@@ -352,7 +354,8 @@ function EditModal({ def, resolved, contexts, version, onClose, onCommitted, onD
   )
 }
 
-function RemoveModal({ def, ctx, version, onClose, onCommitted, onDraft }) {
+function RemoveModal({ def, ctx, version: seenVersion, onClose, onCommitted, onDraft }) {
+  const [version] = useState(seenVersion)
   const { api } = useAuth()
   const toast = useToast()
   const [reason, setReason] = useState('')
@@ -376,7 +379,7 @@ function RemoveModal({ def, ctx, version, onClose, onCommitted, onDraft }) {
   return (
     <Modal open title={`Remove ${def.key} at ${scopeLabel(ctx)}`} onClose={onClose}
       footer={<>
-        <Button variant="secondary" onClick={() => onDraft(op)}>Add to change set</Button>
+        <Button variant="secondary" onClick={() => onDraft(op, version)}>Add to change set</Button>
         <Button variant="danger" loading={busy} onClick={save}>Remove now</Button>
       </>}>
       <div className="space-y-3">

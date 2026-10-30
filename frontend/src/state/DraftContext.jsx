@@ -13,8 +13,14 @@ export function DraftProvider({ children }) {
   // edit to the draft gets a fresh key so it is never mistaken for an earlier request
   const [idempotencyKey, setIdempotencyKey] = useState(newKey)
 
-  const add = useCallback((op) => {
-    setOps((list) => [...list.filter((o) => !sameTarget(o, op)), op])
+  // version the draft was started from: the optimistic lock rejects the commit if anything changed since
+  const [baseVersion, setBaseVersion] = useState(null)
+
+  const add = useCallback((op, seenVersion) => {
+    setOps((list) => {
+      if (!list.length) setBaseVersion(seenVersion ?? null)
+      return [...list.filter((o) => !sameTarget(o, op)), op]
+    })
     setIdempotencyKey(newKey())
   }, [])
   const remove = useCallback((op) => {
@@ -23,10 +29,12 @@ export function DraftProvider({ children }) {
   }, [])
   const clear = useCallback(() => {
     setOps([])
+    setBaseVersion(null)
     setIdempotencyKey(newKey())
   }, [])
 
-  const value = useMemo(() => ({ ops, add, remove, clear, idempotencyKey }), [ops, add, remove, clear, idempotencyKey])
+  const value = useMemo(() => ({ ops, add, remove, clear, idempotencyKey, baseVersion }),
+    [ops, add, remove, clear, idempotencyKey, baseVersion])
   return <DraftContext.Provider value={value}>{children}</DraftContext.Provider>
 }
 

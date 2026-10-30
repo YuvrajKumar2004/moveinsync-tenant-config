@@ -8,11 +8,11 @@ import { scopeText } from '../lib/format.js'
 import { Badge, Button, Card, ErrorBanner, Field, Textarea } from './ui.jsx'
 
 /** Pending change set: submitted as ONE atomic change set (all ops or none). */
-export function DraftPanel({ baseVersion, onCommitted }) {
+export function DraftPanel({ onCommitted }) {
   const { api } = useAuth()
   const live = useLive()
   const toast = useToast()
-  const { ops, remove, clear, idempotencyKey } = useDraft()
+  const { ops, remove, clear, idempotencyKey, baseVersion } = useDraft()
   const [reason, setReason] = useState('')
   const [lock, setLock] = useState(true)
   const [busy, setBusy] = useState(false)
