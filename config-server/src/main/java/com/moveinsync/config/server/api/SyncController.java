@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.Map;
 
 /** Endpoints used by the embedded client library. */
 @RestController
@@ -30,8 +29,8 @@ public class SyncController {
 
     /** Cheap periodic check that heals missed pushes. */
     @GetMapping("/version")
-    public Map<String, Long> version() {
-        return Map.of("version", sync.version());
+    public Wire.ServerVersion version() {
+        return sync.serverVersion();
     }
 
     @GetMapping("/delta")

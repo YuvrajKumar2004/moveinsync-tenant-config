@@ -222,6 +222,44 @@ class EndToEndIT {
                 + "all clients had the pre-crash change %.0f ms after server start returned", readsDuringOutage, recoveryMs));
     }
 
+    /**
+     * Regression: a service restarted with a disk snapshot taken from a server whose database has since been
+     * wiped must adopt the new server's state, and keep receiving its changes, instead of treating the new
+     * history's lower or equal versions as stale.
+     */
+    @Test
+    void snapshotFromAWipedDatabaseIsReplacedByTheNewServerState() throws Exception {
+        Path disk = dir.resolve("booking.snapshot.json");
+        ConfigClient old = client("booking-service", disk);
+        long v = set("OFFICE", "acme", "blr-1", "booking.cutoff", "30m");
+        await().atMost(5, SECONDS).until(() -> old.version() >= v);
+        old.close();
+        clients.remove(old);
+        String oldHistory = api.get("/api/v1/sync/version", operator).json("historyId").asText();
+        server.close();
+
+        try (ServerHarness fresh = new ServerHarness().start()) {     // new, empty database: history restarts at v1
+            server = fresh;
+            api = new Api(fresh.baseUrl());
+            operator = api.token("operator");
+            String newHistory = api.get("/api/v1/sync/version", operator).json("historyId").asText();
+            assertThat(newHistory).isNotBlank().isNotEqualTo(oldHistory);
+
+            ConfigClient restarted = client("booking-service", disk);
+            assertThat(restarted.metrics().historyResets()).isEqualTo(1);
+            assertThat(restarted.version()).isEqualTo(1);
+            assertThat(cutoff(restarted, "blr-1")).isEqualTo("PT1H");
+
+            await().atMost(5, SECONDS).until(restarted::streamConnected);
+            long v2 = set("OFFICE", "acme", "blr-1", "booking.cutoff", "35m");   // same number as the stale v2
+            assertThat(v2).isEqualTo(v);
+            await().atMost(5, SECONDS).until(() -> "PT35M".equals(cutoff(restarted, "blr-1")));
+            assertThat(restarted.metrics().staleDropped()).isZero();
+            Measurements.record("history reset: client with snapshot v" + v + " from a wiped database adopted the new "
+                    + "server state v1 at startup and applied the new v" + v2 + " (resets=" + restarted.metrics().historyResets() + ")");
+        }
+    }
+
     @Test
     void serviceClientOnlyReceivesItsTenantsData() {
         set("OFFICE", "globex", "pune-1", "booking.cutoff", "17m");

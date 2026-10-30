@@ -79,8 +79,18 @@ keep serving their last good snapshot, with staleness that is unbounded but meas
 - Version 43 → 45 means 44 was missed. The client does not apply 45; it fetches `delta?since=43`.
 - A rollback never re-sends an old version. It is a **new** version (for example 44) whose content
   equals the old one.
-- If the server reports a version lower than the client's (for example, restored from an old backup),
-  the client keeps its snapshot and counts `server_behind`. Versions only move forward.
+- Version numbers are only comparable **within one history**. The server's change log has a random
+  `historyId`, created once per database. It comes with every version check, delta and SSE heartbeat
+  (the heartbeat is sent before any backlog on a new stream), and the client stores it with its disk
+  snapshot.
+  - **Different history** (database wiped or replaced): the client discards its snapshot and installs
+    the server's full state, even if that state has a lower version, and counts `history_resets`.
+    Without this, a client holding v10 from the old database would treat the new database's v1…v10 as
+    stale and keep serving old values. Snapshots written before history ids existed count as "unknown"
+    and are replaced once, on first contact.
+  - **Same history, lower server version** (for example, the database restored from an old backup):
+    the client keeps its snapshot and counts `server_behind`. Versions only move forward within a
+    history.
 
 ## 4. Failure modes
 
@@ -95,6 +105,7 @@ keep serving their last good snapshot, with staleness that is unbounded but meas
 | 500 clients reconnect at once | Stream/handshake spread over ~10 s by jitter; reads never stop | Delta-from-version (no full snapshots), LRU-cached full snapshots, bounded snapshot builds with 503 + Retry-After |
 | Service restarts while server is down | Starts from the checksummed disk copy and serves it | Catches up when the server is reachable |
 | Disk copy corrupted / torn | File is rejected (checksum) and counted | Falls back to the server; if neither is available startup fails loudly instead of serving defaults |
+| Server database wiped or replaced while services keep their disk snapshots | Services serve their old snapshot only until the first contact with the new server | The `historyId` mismatch makes each client discard its snapshot and install the server's state; later changes apply normally (EndToEndIT, live check) |
 | Half-open TCP (silent stream) | Nothing | No event for 5 s (handshake) / 20 s (idle) closes and reopens the stream; polling continues meanwhile |
 | Expired / invalid token | 401 | Client invalidates and re-authenticates on the next call |
 

@@ -1,7 +1,6 @@
 package com.moveinsync.config.client.transport;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moveinsync.config.core.wire.Wire;
 
@@ -40,8 +39,8 @@ public final class HttpConfigTransport implements ConfigTransport {
     }
 
     @Override
-    public long fetchVersion() throws IOException {
-        return getJson("/api/v1/sync/version", JsonNode.class).get("version").asLong();
+    public Wire.ServerVersion fetchVersion() throws IOException {
+        return getJson("/api/v1/sync/version", Wire.ServerVersion.class);
     }
 
     @Override
@@ -94,7 +93,10 @@ public final class HttpConfigTransport implements ConfigTransport {
     private static void dispatch(String event, String data, StreamListener listener) throws IOException {
         switch (event) {
             case "change" -> listener.onChange(JSON.readValue(data, Wire.Event.class));
-            case "heartbeat" -> listener.onHeartbeat(JSON.readTree(data).get("version").asLong());
+            case "heartbeat" -> {
+                Wire.ServerVersion v = JSON.readValue(data, Wire.ServerVersion.class);
+                listener.onHeartbeat(v.version(), v.historyId());
+            }
             case "resync" -> listener.onResync(JSON.readTree(data).get("version").asLong());
             default -> {
                 // unknown events are ignored for forward compatibility

@@ -85,8 +85,8 @@ lists the variables.
 | What | Command | Runtime here |
 |---|---|---|
 | Build everything | `./mvnw -DskipTests install` | ~40 s |
-| Unit + integration tests (66) | `./mvnw clean verify` | ~1.5 min |
-| + scale and load tests (69) | `./mvnw -Pscale clean verify` | ~3 min |
+| Unit + integration tests (70) | `./mvnw clean verify` | ~1.5 min |
+| + scale and load tests (73) | `./mvnw -Pscale clean verify` | ~3 min |
 | Only the scale proofs | `./mvnw -Pscale -pl config-server test -Dtest='ScaleIT,LoadIT'` | ~1.5 min (after one `install`) |
 | JMH read benchmark | `java -jar benchmarks/target/benchmarks.jar` | ~4 min |
 | Load `.env` for the simulator commands below | `set -a; . ./.env; set +a` | |
@@ -326,7 +326,7 @@ Let K = settings, O = overrides, o_k = overrides of one key, E = events retained
 **Client** (booking service):
 - `config_client_version` and `config_client_stream_connected`
 - `config_client_staleness_ms` and `config_client_last_lag_ms`
-- `config_client_stale_dropped`, `config_client_gaps_detected`
+- `config_client_stale_dropped`, `config_client_gaps_detected`, `config_client_server_behind`, `config_client_history_resets` (server database replaced)
 - `config_client_poll_heals`, `config_client_heartbeat_heals`
 - `config_client_reconnect_attempts`, `config_client_sync_errors`, `config_client_disk_failures`
 

@@ -148,7 +148,7 @@ class ConfigClientTest {
     void corruptOrTamperedSnapshotFilesAreRejected() throws Exception {
         Path file = dir.resolve("snap.json");
         FakeServer server = new FakeServer();
-        new SnapshotStore(file).save(server.state);
+        new SnapshotStore(file).save(server.state, server.historyId);
         String good = Files.readString(file);
 
         Files.writeString(file, good.replace("PT1H", "PT9H")); // edited payload, stale checksum
@@ -164,6 +164,70 @@ class ConfigClientTest {
         assertThat(c.version()).isEqualTo(1);
         assertThat(c.metrics().diskFailures()).isEqualTo(1);
         await().atMost(2, SECONDS).until(() -> new SnapshotStore(file).load().isPresent());
+    }
+
+    /**
+     * Regression for the stale-snapshot defect: a service restarted with a disk snapshot from a server
+     * whose database was later wiped must not keep its old state (the old v2 would hide the new v2).
+     */
+    @Test
+    void snapshotFromAWipedServerIsDiscardedAndNewChangesApply() throws Exception {
+        Path file = dir.resolve("snap.json");
+        FakeServer server = new FakeServer();
+        ConfigClient first = client(server, file).start();
+        server.commit(new Op.SetOverride(BLR1, "booking.cutoff", "PT30M"));       // v2 in history A
+        await().atMost(2, SECONDS).until(() -> cutoff(first).equals("PT30M"));
+        await().atMost(2, SECONDS).until(() -> new SnapshotStore(file).load().map(l -> l.snapshot().version()).orElse(0L) == 2);
+        first.close();
+
+        server.resetHistory("history-B");                                         // wiped database: v1 again
+        ConfigClient second = client(server, file).start();
+        assertThat(second.version()).isEqualTo(1);
+        assertThat(cutoff(second)).isEqualTo("PT1H");
+        assertThat(second.metrics().historyResets()).isEqualTo(1);
+
+        await().atMost(2, SECONDS).until(() -> server.openStreams() == 1);
+        server.commit(new Op.SetOverride(BLR1, "booking.cutoff", "PT35M"));      // v2 in history B
+        await().atMost(5, SECONDS).until(() -> cutoff(second).equals("PT35M"));
+        assertThat(second.metrics().staleDropped()).isZero();
+        assertThat(new SnapshotStore(file).load().orElseThrow().historyId()).isEqualTo("history-B");
+    }
+
+    @Test
+    void runningClientNoticesTheServerHistoryChanged() {
+        FakeServer server = new FakeServer();
+        ConfigClient c = client(server, null).start();
+        server.commit(new Op.SetOverride(BLR1, "booking.cutoff", "PT30M"));       // v2, history A
+        await().atMost(2, SECONDS).until(() -> cutoff(c).equals("PT30M"));
+
+        server.resetHistory("history-B");                                         // v1, history B
+        server.commit(new Op.SetOverride(BLR1, "booking.cutoff", "PT35M"));      // v2, history B (pushed, looks stale)
+        await().atMost(5, SECONDS).until(() -> cutoff(c).equals("PT35M"));
+        assertThat(c.metrics().historyResets()).isEqualTo(1);
+        assertThat(c.version()).isEqualTo(2);
+    }
+
+    @Test
+    void legacySnapshotWithoutHistoryServesOfflineAndResyncsOnFirstContact() throws Exception {
+        Path file = dir.resolve("legacy.json");
+        FakeServer server = new FakeServer();
+        server.commit(new Op.SetOverride(BLR1, "booking.cutoff", "PT30M"));
+        // format-1 file as written before history ids existed
+        var data = WireCodec.toWire(server.state);
+        byte[] payload = com.moveinsync.config.client.transport.HttpConfigTransport.JSON.writeValueAsBytes(data);
+        Files.write(file, com.moveinsync.config.client.transport.HttpConfigTransport.JSON.writeValueAsBytes(
+                new com.moveinsync.config.core.wire.Wire.DiskFile(1, SnapshotStore.sha256(payload), null, data)));
+
+        server.down = true;
+        ConfigClient offline = client(server, file).start();
+        assertThat(cutoff(offline)).isEqualTo("PT30M");                         // still usable offline
+        offline.close();
+
+        server.down = false;
+        server.resetHistory("history-B");
+        ConfigClient online = client(server, file).start();
+        assertThat(online.metrics().historyResets()).isEqualTo(1);              // unknown history: trust the server
+        assertThat(cutoff(online)).isEqualTo("PT1H");
     }
 
     @Test

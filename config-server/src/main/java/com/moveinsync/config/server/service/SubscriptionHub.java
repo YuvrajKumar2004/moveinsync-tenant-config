@@ -2,6 +2,7 @@ package com.moveinsync.config.server.service;
 
 import com.moveinsync.config.core.change.ChangeEvent;
 import com.moveinsync.config.core.snapshot.TenantFilter;
+import com.moveinsync.config.core.wire.Wire;
 import com.moveinsync.config.core.wire.WireCodec;
 import com.moveinsync.config.server.config.AppProperties;
 import com.moveinsync.config.server.error.ApiException;
@@ -88,16 +89,17 @@ public class SubscriptionHub implements ChangePublisher {
         subscribers.add(s);
         metrics.subscribers().set(subscribers.size());
         long current = state.version();
-        // Backlog and first heartbeat are written before the emitter is returned: Spring buffers these early
-        // sends and flushes them in order when the response starts, so the client sees headers + data at once.
+        // The first heartbeat and the backlog are written before the emitter is returned: Spring buffers these
+        // early sends and flushes them in order when the response starts. The heartbeat goes first so the client
+        // learns this server's history (and resyncs if it differs) before any event is offered to it.
         synchronized (s) {
+            send(s, "heartbeat", null, heartbeat(current));
             if (s.lastSent > current) {
-                // client is ahead of this server (e.g. restored from an older backup): tell it our version
+                // client is ahead of this server (other history, or restored from an older backup)
                 s.lastSent = current;
             } else {
                 deliver(s, current);
             }
-            send(s, "heartbeat", null, json.write(Map.of("version", current)));
         }
         return emitter;
     }
@@ -170,7 +172,7 @@ public class SubscriptionHub implements ChangePublisher {
     @Scheduled(fixedRateString = "${app.sync.heartbeat-interval}")
     void heartbeat() {
         long v = state.version();
-        String data = json.write(Map.of("version", v));
+        String data = heartbeat(v);
         for (Subscriber s : subscribers) {
             schedule(() -> {
                 synchronized (s) {
@@ -179,6 +181,10 @@ public class SubscriptionHub implements ChangePublisher {
                 }
             });
         }
+    }
+
+    private String heartbeat(long version) {
+        return json.write(new Wire.ServerVersion(version, state.historyId()));
     }
 
     private void schedule(Runnable task) {

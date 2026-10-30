@@ -6,6 +6,7 @@ import com.moveinsync.config.core.wire.Wire;
 import com.moveinsync.config.core.wire.WireCodec;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,14 +18,20 @@ import java.util.Optional;
 
 /**
  * Last good snapshot on local disk, so a service can start (and keep serving) while the server is
- * down. Written to a temp file and atomically renamed, with a SHA-256 over the payload: a torn,
- * truncated or edited file is detected and ignored rather than loaded.
+ * down. Written to a temp file and atomically renamed, with a SHA-256 over the history id and payload:
+ * a torn, truncated or edited file is detected and ignored rather than loaded. The history id records
+ * which server change log the snapshot belongs to.
  */
 public final class SnapshotStore {
 
-    static final int FORMAT = 1;
+    static final int FORMAT = 2;
+    private static final int LEGACY_FORMAT = 1; // no history id; still readable
 
     private final Path file;
+
+    /** A snapshot read from disk and the server history it came from (null for legacy files). */
+    public record Loaded(Snapshot snapshot, String historyId) {
+    }
 
     public SnapshotStore(Path file) {
         this.file = file;
@@ -34,10 +41,10 @@ public final class SnapshotStore {
         return file;
     }
 
-    public void save(Snapshot snapshot) throws IOException {
+    public void save(Snapshot snapshot, String historyId) throws IOException {
         Wire.SnapshotData data = WireCodec.toWire(snapshot);
         byte[] payload = HttpConfigTransport.JSON.writeValueAsBytes(data);
-        Wire.DiskFile disk = new Wire.DiskFile(FORMAT, sha256(payload), data);
+        Wire.DiskFile disk = new Wire.DiskFile(FORMAT, sha256(historyId, payload), historyId, data);
         Path dir = file.toAbsolutePath().getParent();
         if (dir != null) {
             Files.createDirectories(dir);
@@ -56,7 +63,7 @@ public final class SnapshotStore {
     }
 
     /** Empty when there is no file. Throws {@link CorruptSnapshotException} when the file fails verification. */
-    public Optional<Snapshot> load() throws IOException {
+    public Optional<Loaded> load() throws IOException {
         if (!Files.exists(file)) {
             return Optional.empty();
         }
@@ -66,18 +73,29 @@ public final class SnapshotStore {
         } catch (IOException e) {
             throw new CorruptSnapshotException("snapshot file is not readable JSON");
         }
-        if (disk == null || disk.format() != FORMAT || disk.snapshot() == null || disk.sha256() == null) {
+        if (disk == null || (disk.format() != FORMAT && disk.format() != LEGACY_FORMAT)
+                || disk.snapshot() == null || disk.sha256() == null) {
             throw new CorruptSnapshotException("snapshot file has an unknown format");
         }
+        String historyId = disk.format() == LEGACY_FORMAT ? null : disk.historyId();
         byte[] payload = HttpConfigTransport.JSON.writeValueAsBytes(disk.snapshot());
-        if (!sha256(payload).equals(disk.sha256())) {
+        String expected = disk.format() == LEGACY_FORMAT ? sha256(payload) : sha256(historyId, payload);
+        if (!expected.equals(disk.sha256())) {
             throw new CorruptSnapshotException("snapshot checksum mismatch");
         }
         try {
-            return Optional.of(WireCodec.fromWire(disk.snapshot()));
+            return Optional.of(new Loaded(WireCodec.fromWire(disk.snapshot()), historyId));
         } catch (RuntimeException e) {
             throw new CorruptSnapshotException("snapshot content is invalid");
         }
+    }
+
+    static String sha256(String historyId, byte[] payload) {
+        byte[] prefix = ((historyId == null ? "" : historyId) + "\n").getBytes(StandardCharsets.UTF_8);
+        byte[] all = new byte[prefix.length + payload.length];
+        System.arraycopy(prefix, 0, all, 0, prefix.length);
+        System.arraycopy(payload, 0, all, prefix.length, payload.length);
+        return sha256(all);
     }
 
     static String sha256(byte[] bytes) {

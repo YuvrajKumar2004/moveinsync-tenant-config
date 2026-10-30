@@ -63,7 +63,12 @@ public final class ConfigClient implements AutoCloseable {
     private final ReentrantLock syncLock = new ReentrantLock();
     private final AtomicBoolean running = new AtomicBoolean();
     private final List<Consumer<Snapshot>> listeners = new CopyOnWriteArrayList<>();
-    private final AtomicReference<Snapshot> pendingDiskWrite = new AtomicReference<>();
+    private final AtomicReference<SnapshotStore.Loaded> pendingDiskWrite = new AtomicReference<>();
+    /**
+     * Identity of the server change log the local snapshot belongs to; null until known. Version numbers
+     * are only compared within one history.
+     */
+    private volatile String historyId;
     private final AtomicBoolean diskWriterScheduled = new AtomicBoolean();
     private volatile ConfigTransport.StreamHandle currentStream;
     private volatile long lastStreamActivity;
@@ -101,9 +106,11 @@ public final class ConfigClient implements AutoCloseable {
         }
         if (store != null) {
             try {
-                store.load().ifPresent(s -> {
-                    install(s);
-                    log.info("[{}] loaded snapshot v{} from {}", name, s.version(), store.file());
+                store.load().ifPresent(loaded -> {
+                    historyId = loaded.historyId();
+                    install(loaded.snapshot());
+                    log.info("[{}] loaded snapshot v{} (history {}) from {}", name, loaded.snapshot().version(),
+                            loaded.historyId() == null ? "unknown" : loaded.historyId(), store.file());
                 });
             } catch (IOException e) {
                 metrics.diskFailures.incrementAndGet();
@@ -229,7 +236,11 @@ public final class ConfigClient implements AutoCloseable {
         }
     }
 
-    void onServerVersion(long serverVersion, boolean fromHeartbeat) {
+    void onServerVersion(long serverVersion, String serverHistory, boolean fromHeartbeat) {
+        if (!sameHistory(serverHistory)) {
+            safeCatchUp(); // detects the other history and resets to the server's state
+            return;
+        }
         long local = holder.version();
         if (serverVersion > local) {
             if (fromHeartbeat) {
@@ -259,6 +270,10 @@ public final class ConfigClient implements AutoCloseable {
                 long local = holder.version();
                 Wire.Delta delta = transport.fetchDelta(local);
                 metrics.lastServerContactMillis.set(System.currentTimeMillis());
+                if (!sameHistory(delta.historyId())) {
+                    resetToServer();
+                    return;
+                }
                 if (delta.full()) {
                     Snapshot s = WireCodec.fromWire(delta.snapshot());
                     if (s.version() > local) {
@@ -291,6 +306,41 @@ public final class ConfigClient implements AutoCloseable {
         } finally {
             syncLock.unlock();
         }
+    }
+
+    /**
+     * True when the server's change log is the one the local snapshot came from. An empty client adopts
+     * the server's history; a non-empty snapshot of unknown history (legacy disk file) counts as different.
+     */
+    private boolean sameHistory(String serverHistory) {
+        String local = historyId;
+        if (serverHistory == null || serverHistory.equals(local)) {
+            return true;
+        }
+        if (local == null && holder.version() == 0) {
+            historyId = serverHistory;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * The server's change log was reset or replaced: local version numbers mean nothing there, so the local
+     * snapshot is discarded and the server's full state installed, even if its version number is lower.
+     * Must hold {@code syncLock}.
+     */
+    private void resetToServer() throws IOException {
+        Wire.Delta full = transport.fetchDelta(0);
+        Snapshot s = WireCodec.fromWire(full.snapshot());
+        String previous = historyId;
+        long previousVersion = holder.version();
+        holder.reset(s);
+        historyId = full.historyId();
+        metrics.historyResets.incrementAndGet();
+        metrics.fullSnapshots.incrementAndGet();
+        log.warn("[{}] server history changed ({} -> {}): discarded local snapshot v{}, installed server state v{}",
+                name, previous == null ? "unknown" : previous, historyId, previousVersion, s.version());
+        installed(s);
     }
 
     private void install(Snapshot s) {
@@ -362,9 +412,9 @@ public final class ConfigClient implements AutoCloseable {
         }
 
         @Override
-        public void onHeartbeat(long serverVersion) {
+        public void onHeartbeat(long serverVersion, String serverHistory) {
             touch();
-            onServerVersion(serverVersion, true);
+            onServerVersion(serverVersion, serverHistory, true);
         }
 
         @Override
@@ -385,10 +435,10 @@ public final class ConfigClient implements AutoCloseable {
             }
             try {
                 metrics.pollChecks.incrementAndGet();
-                long serverVersion = transport.fetchVersion();
+                Wire.ServerVersion server = transport.fetchVersion();
                 metrics.lastServerContactMillis.set(System.currentTimeMillis());
                 failures = 0;
-                onServerVersion(serverVersion, false);
+                onServerVersion(server.version(), server.historyId(), false);
             } catch (IOException | RuntimeException e) {
                 metrics.syncErrors.incrementAndGet();
                 failures = Math.min(failures + 1, 30);
@@ -408,15 +458,16 @@ public final class ConfigClient implements AutoCloseable {
         if (store == null) {
             return;
         }
-        pendingDiskWrite.set(s);
+        pendingDiskWrite.set(new SnapshotStore.Loaded(s, historyId));
         if (diskWriterScheduled.compareAndSet(false, true)) {
             Thread.ofVirtual().name("config-disk-" + name).start(() -> {
                 try {
                     flushDisk();
                 } finally {
                     diskWriterScheduled.set(false);
-                    if (pendingDiskWrite.get() != null) {
-                        scheduleDiskWrite(pendingDiskWrite.get());
+                    SnapshotStore.Loaded next = pendingDiskWrite.get();
+                    if (next != null) {
+                        scheduleDiskWrite(next.snapshot());
                     }
                 }
             });
@@ -424,12 +475,12 @@ public final class ConfigClient implements AutoCloseable {
     }
 
     private synchronized void flushDisk() {
-        Snapshot s = pendingDiskWrite.getAndSet(null);
-        if (s == null || store == null) {
+        SnapshotStore.Loaded pending = pendingDiskWrite.getAndSet(null);
+        if (pending == null || store == null) {
             return;
         }
         try {
-            store.save(s);
+            store.save(pending.snapshot(), pending.historyId());
             metrics.diskWrites.incrementAndGet();
         } catch (IOException e) {
             metrics.diskFailures.incrementAndGet();

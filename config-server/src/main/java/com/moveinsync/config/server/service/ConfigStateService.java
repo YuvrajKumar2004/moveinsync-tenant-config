@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentSkipListMap;
 
 /**
@@ -31,6 +32,7 @@ public class ConfigStateService {
     private final int retained;
     private final SnapshotHolder holder = new SnapshotHolder(Snapshot.empty());
     private final ConcurrentSkipListMap<Long, ChangeEvent> recent = new ConcurrentSkipListMap<>();
+    private volatile String historyId;
 
     public ConfigStateService(ChangeSetRepository repository, EventJson json, ConfigMetrics metrics, AppProperties props) {
         this.repository = repository;
@@ -42,9 +44,15 @@ public class ConfigStateService {
     @PostConstruct
     void load() {
         long start = System.nanoTime();
+        historyId = repository.historyId(UUID.randomUUID().toString());
         catchUp();
-        log.info("state rebuilt from change log: version={} overrides={} in {}ms", holder.version(),
+        log.info("state rebuilt from change log: history={} version={} overrides={} in {}ms", historyId, holder.version(),
                 holder.current().overrideCount(), (System.nanoTime() - start) / 1_000_000);
+    }
+
+    /** Identity of the change log; version numbers are only comparable within one history. */
+    public String historyId() {
+        return historyId;
     }
 
     /** Applies any change sets present in the database but not yet in memory. */

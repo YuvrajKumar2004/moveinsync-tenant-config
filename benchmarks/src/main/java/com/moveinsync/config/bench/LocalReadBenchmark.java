@@ -132,13 +132,13 @@ public class LocalReadBenchmark {
 
     private record StaticTransport(Snapshot snapshot) implements ConfigTransport {
         @Override
-        public long fetchVersion() {
-            return snapshot.version();
+        public Wire.ServerVersion fetchVersion() {
+            return new Wire.ServerVersion(snapshot.version(), "static");
         }
 
         @Override
         public Wire.Delta fetchDelta(long since) {
-            return new Wire.Delta(since, snapshot.version(), true, List.of(), WireCodec.toWire(snapshot));
+            return new Wire.Delta(since, snapshot.version(), true, List.of(), WireCodec.toWire(snapshot), "static");
         }
 
         @Override

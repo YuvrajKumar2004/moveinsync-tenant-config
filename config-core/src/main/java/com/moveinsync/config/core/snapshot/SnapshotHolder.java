@@ -54,4 +54,13 @@ public final class SnapshotHolder {
         ref.set(next);
         return true;
     }
+
+    /**
+     * Installs {@code next} unconditionally. Only for switching to a different server history (the
+     * server's change log was reset or replaced): version numbers of two histories are not comparable,
+     * so "never go backwards" applies within a history, not across histories.
+     */
+    public synchronized void reset(Snapshot next) {
+        ref.set(next);
+    }
 }

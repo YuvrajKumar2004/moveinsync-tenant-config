@@ -21,6 +21,7 @@ public final class ClientMetrics {
     final AtomicLong reconnectAttempts = new AtomicLong();
     final AtomicLong syncErrors = new AtomicLong();
     final AtomicLong serverBehind = new AtomicLong();
+    final AtomicLong historyResets = new AtomicLong();
     final AtomicLong diskWrites = new AtomicLong();
     final AtomicLong diskFailures = new AtomicLong();
     final AtomicLong lastLagMillis = new AtomicLong(-1);
@@ -64,6 +65,10 @@ public final class ClientMetrics {
         return syncErrors.get();
     }
 
+    public long historyResets() {
+        return historyResets.get();
+    }
+
     public long diskFailures() {
         return diskFailures.get();
     }
@@ -81,6 +86,7 @@ public final class ClientMetrics {
         m.put("reconnect_attempts", reconnectAttempts.get());
         m.put("sync_errors", syncErrors.get());
         m.put("server_behind", serverBehind.get());
+        m.put("history_resets", historyResets.get());
         m.put("disk_writes", diskWrites.get());
         m.put("disk_failures", diskFailures.get());
         m.put("last_lag_ms", lastLagMillis.get());

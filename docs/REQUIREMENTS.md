@@ -47,7 +47,7 @@ Test paths are relative to the module (`config-server/src/test/java/...` and so 
 | # | Requirement | Where | Status |
 |---|---|---|---|
 | 18 | Consistency model in one paragraph | `docs/DESIGN.md` §3 | ✅ |
-| 19 | What a client does with v41 after v43 | `docs/DESIGN.md` §3; `SnapshotHolder`; `ConfigClientTest.duplicateAndOutOfOrder…`, `EndToEndIT.duplicateAndOutOfOrderPushes…` | ✅ |
+| 19 | What a client does with v41 after v43 (and after a server database reset) | `docs/DESIGN.md` §3 (history id); `ConfigClientTest.snapshotFromAWipedServerIsDiscarded…`, `runningClientNoticesTheServerHistoryChanged`, `EndToEndIT.snapshotFromAWipedDatabaseIsReplacedByTheNewServerState`; `SnapshotHolder`; `ConfigClientTest.duplicateAndOutOfOrder…`, `EndToEndIT.duplicateAndOutOfOrderPushes…` | ✅ |
 | 20 | Test reading continuously during a change, never mixed | see #10 | ✅ |
 | 21 | Benchmark local reads; propagation to 200 clients; kill-the-server test | see #6, #7, #16 | ✅ |
 

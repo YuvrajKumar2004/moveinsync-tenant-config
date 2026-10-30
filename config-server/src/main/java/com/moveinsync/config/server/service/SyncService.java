@@ -43,6 +43,10 @@ public class SyncService {
         return state.version();
     }
 
+    public Wire.ServerVersion serverVersion() {
+        return new Wire.ServerVersion(state.version(), state.historyId());
+    }
+
     public Wire.Delta delta(AuthUser user, long since) {
         if (since < 0) {
             throw ApiException.badRequest("since must be >= 0");
@@ -51,19 +55,19 @@ public class SyncService {
         TenantFilter filter = user.readFilter();
         if (since == current.version()) {
             metrics.delta("empty");
-            return new Wire.Delta(since, since, false, List.of(), null);
+            return new Wire.Delta(since, since, false, List.of(), null, state.historyId());
         }
         if (since > 0 && since < current.version()) {
             Optional<List<ChangeEvent>> events = state.eventsAfter(since, current.version());
             if (events.isPresent()) {
                 metrics.delta("events");
                 List<Wire.Event> wire = events.get().stream().map(e -> WireCodec.toWire(filter.filter(e))).toList();
-                return new Wire.Delta(since, current.version(), false, wire, null);
+                return new Wire.Delta(since, current.version(), false, wire, null, state.historyId());
             }
         }
         // since == 0 (new client), too old, or ahead of the server (server restored from older state)
         metrics.delta("full");
-        return new Wire.Delta(since, current.version(), true, List.of(), fullSnapshot(current, filter));
+        return new Wire.Delta(since, current.version(), true, List.of(), fullSnapshot(current, filter), state.historyId());
     }
 
     public Wire.SnapshotData snapshot(AuthUser user) {

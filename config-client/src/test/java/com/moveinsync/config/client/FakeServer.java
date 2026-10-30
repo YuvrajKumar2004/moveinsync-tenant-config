@@ -25,6 +25,7 @@ final class FakeServer implements ConfigTransport {
     volatile Snapshot state = Snapshot.empty();
     volatile boolean down;
     volatile boolean dropPushes;
+    volatile String historyId = "history-A";
 
     FakeServer() {
         commit(DemoCatalog.bootstrapOps().toArray(Op[]::new));
@@ -46,9 +47,20 @@ final class FakeServer implements ConfigTransport {
     }
 
     @Override
-    public long fetchVersion() throws IOException {
+    public Wire.ServerVersion fetchVersion() throws IOException {
         failIfDown();
-        return state.version();
+        return new Wire.ServerVersion(state.version(), historyId);
+    }
+
+    /** Simulates a wiped / replaced database: a new history that starts again at version 1. */
+    synchronized void resetHistory(String newHistoryId) {
+        log.clear();
+        state = Snapshot.empty();
+        historyId = newHistoryId;
+        boolean dropped = dropPushes;
+        dropPushes = true; // the bootstrap of the new history is not pushed to old streams
+        commit(DemoCatalog.bootstrapOps().toArray(Op[]::new));
+        dropPushes = dropped;
     }
 
     @Override
@@ -56,22 +68,23 @@ final class FakeServer implements ConfigTransport {
         failIfDown();
         Snapshot s = state;
         if (since == 0 || since > s.version()) {
-            return new Wire.Delta(since, s.version(), true, List.of(), WireCodec.toWire(s));
+            return new Wire.Delta(since, s.version(), true, List.of(), WireCodec.toWire(s), historyId);
         }
         List<Wire.Event> events = log.stream().filter(e -> e.version() > since && e.version() <= s.version())
                 .map(WireCodec::toWire).toList();
-        return new Wire.Delta(since, s.version(), false, events, null);
+        return new Wire.Delta(since, s.version(), false, events, null, historyId);
     }
 
     @Override
     public void stream(long since, StreamListener listener, StreamHandle handle) throws IOException {
         failIfDown();
+        // like the real server: heartbeat (with history) first, then the backlog
+        listener.onHeartbeat(state.version(), historyId);
         for (ChangeEvent e : log) {
             if (e.version() > since) {
                 listener.onChange(WireCodec.toWire(e));
             }
         }
-        listener.onHeartbeat(state.version());
         streams.add(listener);
         try {
             while (!handle.isClosed()) {

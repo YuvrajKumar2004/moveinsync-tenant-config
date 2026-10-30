@@ -7,8 +7,8 @@ import java.io.IOException;
 /** How the client talks to the server. The HTTP implementation is the default; tests use fakes. */
 public interface ConfigTransport extends AutoCloseable {
 
-    /** Current server version (cheap; used by the periodic check). */
-    long fetchVersion() throws IOException;
+    /** Current server version and history id (cheap; used by the periodic check). */
+    Wire.ServerVersion fetchVersion() throws IOException;
 
     /** Everything after {@code since}: contiguous events or a full snapshot. */
     Wire.Delta fetchDelta(long since) throws IOException;
@@ -26,7 +26,7 @@ public interface ConfigTransport extends AutoCloseable {
     interface StreamListener {
         void onChange(Wire.Event event);
 
-        void onHeartbeat(long serverVersion);
+        void onHeartbeat(long serverVersion, String historyId);
 
         void onResync(long serverVersion);
     }

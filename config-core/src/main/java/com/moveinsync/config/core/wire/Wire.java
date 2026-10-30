@@ -46,11 +46,21 @@ public final class Wire {
     /**
      * Answer to "what changed since version N". Either {@code events} (contiguous, starting at
      * since + 1) or a full {@code snapshot} when the server no longer retains those events.
+     * {@code historyId} identifies the server's change log; version numbers are only comparable
+     * within one history.
      */
-    public record Delta(long fromVersion, long toVersion, boolean full, List<Event> events, SnapshotData snapshot) {
+    public record Delta(long fromVersion, long toVersion, boolean full, List<Event> events, SnapshotData snapshot,
+                        String historyId) {
     }
 
-    /** File written by the client: payload plus SHA-256 so a torn or corrupted file is detected. */
-    public record DiskFile(int format, String sha256, SnapshotData snapshot) {
+    /** Current server version and the history it belongs to (version check and SSE heartbeat). */
+    public record ServerVersion(long version, String historyId) {
+    }
+
+    /**
+     * File written by the client: payload plus SHA-256 so a torn or corrupted file is detected.
+     * Format 1 had no {@code historyId}; format 2 records it (covered by the checksum).
+     */
+    public record DiskFile(int format, String sha256, String historyId, SnapshotData snapshot) {
     }
 }

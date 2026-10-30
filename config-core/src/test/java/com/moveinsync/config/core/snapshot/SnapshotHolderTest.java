@@ -30,6 +30,11 @@ class SnapshotHolderTest {
         assertThat(h.offer(event(5, set(BLR1, "booking.cutoff", "PT5M")))).isEqualTo(SnapshotHolder.Outcome.GAP);
         assertThat(h.version()).isEqualTo(3);
         assertThat(h.replaceIfNewer(Snapshot.empty())).isFalse();
+
+        // switching to another server history installs that state even though its version is lower
+        h.reset(base());
+        assertThat(h.version()).isEqualTo(1);
+        assertThat(h.offer(event(2, set(BLR1, "booking.cutoff", "PT35M")))).isEqualTo(SnapshotHolder.Outcome.APPLIED);
     }
 
     /**

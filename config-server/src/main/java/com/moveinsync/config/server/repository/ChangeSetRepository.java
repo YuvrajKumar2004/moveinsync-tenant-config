@@ -33,6 +33,12 @@ public class ChangeSetRepository {
         return v == null ? 0 : v;
     }
 
+    /** The change log's identity, created on first use. Safe if two instances race: the first write wins. */
+    public String historyId(String candidate) {
+        jdbc.update("UPDATE config_version SET history_id = ? WHERE id = 1 AND history_id IS NULL", candidate);
+        return jdbc.queryForObject("SELECT history_id FROM config_version WHERE id = 1", String.class);
+    }
+
     public long currentVersion() {
         Long v = jdbc.queryForObject("SELECT current_version FROM config_version WHERE id = 1", Long.class);
         return v == null ? 0 : v;
