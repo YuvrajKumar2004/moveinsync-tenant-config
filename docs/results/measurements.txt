@@ -23,3 +23,14 @@
 2026-10-30T07:52:49.371397900Z reconnect storm: 500 clients, server down 3s; all caught up=true in 8815 ms; all streams back in 10594 ms; visibility after restart n=500 min=806.56ms p50=2193.77ms p90=4832.34ms p99=7200.87ms max=8814.72ms mean=2619.85ms; server sync answers: events=281 empty=0 full=0; client full snapshots during storm=0; handshake rejections=0; 5xx (non-503)=0; subscribers=500
 2026-10-30T07:59:02.484580800Z GET /api/v1/resolve (explain): threads=32 duration=15.0s requests=203013 errors=0 throughput=13534 req/s latency n=203013 min=0.46ms p50=1.85ms p90=3.89ms p99=9.57ms max=63.79ms mean=2.35ms
 2026-10-30T07:59:15.502277900Z POST /api/v1/change-sets: threads=8 duration=10.0s requests=13439 errors=0 throughput=1344 req/s latency n=13439 min=3.69ms p50=5.77ms p90=6.67ms p99=7.68ms max=10.18ms mean=5.94ms
+
+# final verification run (clean ./mvnw verify + -Pscale ScaleIT,LoadIT)
+2026-10-30T08:05:06.208890600Z missed-push healing (push dropped by fault): 1732.4 ms, pollHeals=0 heartbeatHeals=1
+2026-10-30T08:05:10.948593400Z kill-the-server: 1835814 reads served during outage, cold start from disk ok, all clients had the pre-crash change 1007 ms after server start returned
+2026-10-30T08:05:12.616482600Z duplicate+out-of-order pushes: staleDropped=20 gaps=0 finalVersion=21
+2026-10-30T08:05:14.455063800Z atomic change-set reads over network: reads=551925 flips=40 mixed=null
+2026-10-30T08:05:16.024051100Z e2e push propagation (1 client, commit->visible): 113.6 ms
+2026-10-30T08:06:08.189066700Z GET /api/v1/resolve (explain): threads=32 duration=15.0s requests=109529 errors=0 throughput=7302 req/s latency n=109529 min=0.53ms p50=3.27ms p90=5.97ms p99=32.42ms max=456.15ms mean=4.36ms
+2026-10-30T08:06:21.228513400Z POST /api/v1/change-sets: threads=8 duration=10.0s requests=5320 errors=0 throughput=532 req/s latency n=5320 min=8.37ms p50=14.87ms p90=16.61ms p99=18.57ms max=30.95ms mean=15.00ms
+2026-10-30T08:06:27.613402600Z propagation to 200 clients over 20 changes: per-client n=4000 min=5.30ms p50=19.60ms p90=48.94ms p99=77.53ms max=84.07ms mean=24.84ms | worst-per-change n=20 min=14.18ms p50=22.06ms p90=49.14ms p99=84.07ms max=84.07ms mean=29.77ms | missed=0
+2026-10-30T08:06:58.085148300Z reconnect storm: 500 clients, server down 3s; all caught up=true in 9279 ms; all streams back in 11418 ms; visibility after restart n=500 min=1757.65ms p50=3185.89ms p90=5917.24ms p99=8022.66ms max=9275.00ms mean=3587.78ms; server sync answers: events=236 empty=0 full=0; client full snapshots during storm=0; handshake rejections=0; 5xx (non-503)=0; subscribers=500

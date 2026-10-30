@@ -87,7 +87,7 @@ keep serving their last good snapshot, with staleness that is unbounded but meas
 | What fails | What the user / service sees | How the system recovers |
 |---|---|---|
 | Config server process dies | Reads keep answering from memory (2.1 M reads served during a 2 s outage in the test); writes fail with connection errors | Clients retry with full-jitter backoff (250 ms → 10 s). On restart the server replays the change log and clients resume with `since=<their version>` |
-| Server crashes after commit, before push | Clients briefly keep the previous value | Change is durable; heartbeat / version poll / reconnect delta delivers it (kill-the-server test: 1.5–1.8 s after restart) |
+| Server crashes after commit, before push | Clients briefly keep the previous value | Change is durable; heartbeat / version poll / reconnect delta delivers it (kill-the-server test: 1.0–1.8 s after restart) |
 | A push is lost, duplicated or reordered | Nothing; at most one poll interval of extra staleness | Gap → delta fetch; duplicate / older version dropped (EndToEndIT, fault injector) |
 | Database down | Writes return 5xx/503, nothing is half-applied; reads, push and sync of existing state keep working from memory | Retry the write; the version row lock and transaction keep the log consistent |
 | Invalid value or half of a related pair | 422 with every violation listed; version does not move; nothing is published | Fix and resubmit |

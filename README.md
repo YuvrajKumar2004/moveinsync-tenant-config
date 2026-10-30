@@ -64,9 +64,9 @@ clearly labelled dev-only defaults.
 | What | Command | Runtime here |
 |---|---|---|
 | Build everything | `./mvnw -DskipTests install` | ~40 s |
-| Unit + integration tests (63) | `./mvnw verify` | ~2.5 min |
-| + scale and load tests (66) | `./mvnw -Pscale verify` | ~4 min |
-| Only the scale proofs | `./mvnw -Pscale -pl config-server test -Dtest='ScaleIT,LoadIT'` | ~1.5 min |
+| Unit + integration tests (63) | `./mvnw clean verify` | ~1 min |
+| + scale and load tests (66) | `./mvnw -Pscale clean verify` | ~3 min |
+| Only the scale proofs | `./mvnw -Pscale -pl config-server test -Dtest='ScaleIT,LoadIT'` | ~1.5 min (after one `install`) |
 | JMH read benchmark | `java -jar benchmarks/target/benchmarks.jar` | ~4 min |
 | Propagation against a running server | `java -jar load-simulator/target/load-simulator-1.0.0-all.jar propagation --url http://localhost:8080 --clients 200 --rounds 10` | |
 | HTTP load against a running server | `java -jar load-simulator/target/load-simulator-1.0.0-all.jar load --url http://localhost:8080 --threads 32 --seconds 20` | |
@@ -99,22 +99,27 @@ is 100 ns, so sample-mode percentiles show as 0 or 100 ns.)
 
 ### Propagation and failure tests (all automated)
 
+Ranges cover the two full runs recorded in `docs/results/measurements.txt`.
+
 | Scenario | Result |
 |---|---|
-| **200 simulated clients**, 20 changes (ScaleIT) | p50 **12 ms**, p99 **43 ms**, max **48 ms**; 0 missed |
+| **200 simulated clients**, 20 changes (ScaleIT) | p50 **12–20 ms**, p99 **43–78 ms**, max **48–84 ms**; 0 missed in both runs |
 | 200 clients against a separate server process (CLI, H2) | p50 17 ms, p99 120 ms, max 123 ms; 0 missed |
 | Push deliberately dropped (fault injector) | healed in 1.3–1.5 s by heartbeat / version poll |
 | 20 changes with every push duplicated and an older one re-sent | 20 stale messages dropped, never went backwards, final value correct |
 | 4 reader threads during 40 night-window flips over the network | ~0.5–1.5 M reads, **0 mixed states** |
-| **Kill the server**: change committed but not pushed, then the server is killed | 1.6–2.6 M reads served during a 2 s outage; a new instance cold-started from disk; every client had the pre-crash change 1.5–1.8 s after the server started again |
-| **Reconnect storm**: 500 connected clients, server down 3 s, restarted | all 500 caught up 8.8 s after `start()` (includes Spring Boot startup); reconnects spread p50 2.2 s / p99 7.2 s by jitter; 281 delta answers, **0 full snapshots**, 0 handshake rejections, 0 server 5xx |
+| **Kill the server**: change committed but not pushed, then the server is killed | 1.6–2.6 M reads served during a 2 s outage; a new instance cold-started from disk; every client had the pre-crash change 1.0–1.8 s after the server started again |
+| **Reconnect storm**: 500 connected clients, server down 3 s, restarted | all 500 caught up 8.8–9.3 s after `start()` (includes Spring Boot startup); reconnects spread p50 2.2–3.2 s / p99 7.2–8.0 s by jitter; only delta answers, **0 full snapshots**, 0 handshake rejections, 0 server 5xx |
 
 ### HTTP load (LoadIT, PostgreSQL, closed loop, same machine)
 
+Two runs on the same laptop; the second ran straight after a full build and test cycle, which shows
+how much a shared, thermally limited machine varies.
+
 | Endpoint | Threads | Throughput | p50 | p99 | Errors |
 |---|---|---|---|---|---|
-| `GET /api/v1/resolve?…&explain=true` | 32 | **13,534 req/s** | 1.85 ms | 9.57 ms | 0 |
-| `POST /api/v1/change-sets` (validate + row lock + insert + push) | 8 | **1,344 commits/s** | 5.77 ms | 7.68 ms | 0 |
+| `GET /api/v1/resolve?…&explain=true` | 32 | **7,302 – 13,534 req/s** | 1.85 – 3.27 ms | 9.6 – 32.4 ms | 0 |
+| `POST /api/v1/change-sets` (validate + row lock + insert + push) | 8 | **532 – 1,344 commits/s** | 5.8 – 14.9 ms | 7.7 – 18.6 ms | 0 |
 
 ---
 
@@ -205,7 +210,7 @@ Let K = settings, O = overrides, o_k = overrides of one key, E = events retained
 | Rollback | O(V) replay to rebuild version V, plus O(O_tenant) diff | |
 
 **Where it stops scaling, and why:**
-1. **Write throughput.** About 1.3k commits/s here. There is a single writer and a single row lock by
+1. **Write throughput.** 0.5–1.3k commits/s here. There is a single writer and a single row lock by
    design (total order, gap-free versions). Configuration changes are human-driven, so this has large
    headroom.
 2. **Fan-out per server instance.** Each client holds one SSE connection. Tens of thousands of

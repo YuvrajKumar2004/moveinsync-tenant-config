@@ -20,7 +20,7 @@ Test paths are relative to the module (`config-server/src/test/java/...` and so 
 | # | Requirement | Implementation | Verification | Status |
 |---|---|---|---|---|
 | 6 | In-memory snapshot, microsecond reads, no network call | `ConfigClient.view` → `SnapshotHolder` (volatile read) | JMH `LocalReadBenchmark`: 12–53 ns avg (`docs/results/jmh-local-read.txt`) | ✅ |
-| 7 | Change visible in every connected client within 5 s | SSE push (`SubscriptionHub`) | `ScaleIT.propagationTo200SimulatedClients…`: p99 43 ms, max 48 ms, 0 missed; `EndToEndIT.bengaluruExample…` | ✅ |
+| 7 | Change visible in every connected client within 5 s | SSE push (`SubscriptionHub`) | `ScaleIT.propagationTo200SimulatedClients…`: p99 43–78 ms, max 48–84 ms, 0 missed; `EndToEndIT.bengaluruExample…` | ✅ |
 | 8 | Push (WebSocket/SSE/long-poll) + periodic version check that heals missed pushes | SSE + heartbeat + `pollLoop` (2 s ± 20%) | `EndToEndIT.droppedPushIsHealed…` (1.3–1.5 s), `ConfigClientTest.missedPushIsHealed…` | ✅ |
 | 9 | Reconnect storm: 500 clients, jitter, only what changed since each client's version | `Backoff` (full jitter), `stream?since=`, in-memory event window, LRU snapshot cache, bounded snapshot builds + 503/Retry-After | `ScaleIT.reconnectStormOf500Clients…`: 0 full snapshots, 0 5xx, spread p50 2.2 s / p99 7.2 s; `ConfigClientTest.backoffUsesFullJitter…` | ✅ |
 
@@ -39,7 +39,7 @@ Test paths are relative to the module (`config-server/src/test/java/...` and so 
 | 13 | Server down: clients keep serving last good snapshot | read path never touches the network | `EndToEndIT.killTheServer…` (millions of reads during outage), `ConfigClientTest.keepsServingWhenTheServerDies…` | ✅ |
 | 14 | Start up from a copy saved on disk | `SnapshotStore` (atomic rename, SHA-256) | `EndToEndIT.killTheServer…` (cold start while down), `ConfigClientTest.startsFromDiskWhenTheServerIsDown`, `corruptOrTamperedSnapshotFilesAreRejected` | ✅ |
 | 15 | Bad values (−30 min, window ending before it starts) rejected before publish | `ChangeSetValidator`, 422 response, version unchanged | `ApiIT.invalidValuesAreRejectedAndNothingIsPublished`, `SettingTypesTest` | ✅ |
-| 16 | Example: kill the server, reads continue, the change made just before the crash is applied everywhere after restart | durable commit before push; replay on startup; delta on reconnect | `EndToEndIT.killTheServer…` (push dropped, then kill, restart → 1.5–1.8 s), `ConcurrencyAndDurabilityIT.committedChangesSurviveRestart` | ✅ |
+| 16 | Example: kill the server, reads continue, the change made just before the crash is applied everywhere after restart | durable commit before push; replay on startup; delta on reconnect | `EndToEndIT.killTheServer…` (push dropped, then kill, restart → 1.0–1.8 s), `ConcurrencyAndDurabilityIT.committedChangesSurviveRestart` | ✅ |
 | 17 | Example: Bengaluru office 60 → 30 min; booking 45 min ahead accepted for that office only | `demo-booking-service` `BookingPolicy` | `BookingPolicyTest`, `EndToEndIT.bengaluruExample…`, live `scripts/demo.sh` run | ✅ |
 
 ## Key points
