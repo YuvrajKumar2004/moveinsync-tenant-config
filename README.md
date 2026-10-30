@@ -17,6 +17,17 @@ MoveInSync case study 2 (SDE Java backend, Advanced Track). It has two parts:
 
 ## 1. Run it
 
+### What each start method starts
+
+| Start method | Database | Config server :8080 | Booking service :8081 | Frontend :5173 |
+|---|---|---|---|---|
+| `docker compose up --build` | PostgreSQL 16 (container) | ✅ | ✅ | ❌ start separately with `npm run dev` in `frontend/` |
+| IntelliJ **Whole application** (compound) | local PostgreSQL or H2 | ✅ | ✅ | ✅ |
+| `scripts/run-local.sh` | local PostgreSQL or H2 | ✅ | ✅ | ❌ start separately with `npm run dev` in `frontend/` |
+
+Use one backend option at a time: they all use ports 8080 and 8081. The frontend works with any of
+them unchanged, because its dev server proxies to `localhost:8080` and `localhost:8081`.
+
 ### One command (Docker)
 
 ```bash
@@ -81,7 +92,7 @@ In IntelliJ, use the VM option `-Dspring.profiles.active=demo` (instead of `loca
    - `ConfigServerApplication` with VM option `-Dspring.profiles.active=local,demo`
    - `BookingApplication`
 
-   Optionally add the npm script `dev` from `frontend/package.json` to the compound as well.
+   Add the npm script `dev` from `frontend/package.json` to the compound as well, so one click also starts the frontend.
 4. Run *Whole application*.
 
 Both apps read their secrets from `.env` in the working directory
@@ -385,7 +396,7 @@ React 19 + Vite 7 + Tailwind 4 dashboard:
 
 ### Run on Windows (Git Bash)
 
-1. Start the backend: `scripts/run-local.sh` (or **Whole application** in IntelliJ). The config server runs on :8080, the booking service on :8081.
+1. Start the backend with any option from §1: `docker compose up -d`, `scripts/run-local.sh`, or **Whole application** in IntelliJ (which also starts the frontend, so skip step 2). The config server runs on :8080, the booking service on :8081.
 2. Start the frontend:
    ```bash
    cd frontend
