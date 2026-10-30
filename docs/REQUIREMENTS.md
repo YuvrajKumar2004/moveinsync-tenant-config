@@ -71,7 +71,7 @@ All Java modules live under `backend/`; test paths below are relative to the mod
 | A1 | Every hard rule has an automated test, incl. ≥1 concurrency and ≥1 failure test | this file; concurrency: `SnapshotHolderTest`, `EndToEndIT` atomic test, `ConcurrencyAndDurabilityIT`; failure: `EndToEndIT` | ✅ |
 | A2 | Load test / benchmark with throughput, p50/p99, machine, in README | README §3, `LoadIT`, JMH | ✅ |
 | A3 | Design note: architecture diagram, sequence diagram, failure-mode table | `docs/DESIGN.md` | ✅ |
-| A4 | One-command run incl. database | `docker-compose.yml`, `Dockerfile` | ⛔ written but not executed: Docker is not installed on the build machine. No-Docker equivalent `scripts/run-local.sh` was run |
+| A4 | One-command run incl. database | `docker-compose.yml`, `backend/Dockerfile`; without Docker `scripts/run-local.sh` | ✅ `docker compose up --build` verified (Docker 29.9.2 / Compose v5.6.1): PostgreSQL 16.15 + both services healthy, change persisted and pushed, kill/restart of config-server recovered in 7 s |
 | D1 | README: how to run, assumptions, benchmark results, trade-offs | `README.md` | ✅ |
 | D2 | Public GitHub repository with meaningful commit history | local git repo with incremental commits | 🟡 needs a manual push (no remote configured) |
 | D3 | Demo video: main flows, one live failure, sample API calls | `docs/DEMO_SCRIPT.md` + `scripts/demo.sh` + Postman collection | 🟡 script ready; the video itself has to be recorded by a person |

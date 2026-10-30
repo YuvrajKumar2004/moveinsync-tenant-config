@@ -28,8 +28,16 @@ scripts/init-env.sh && docker compose up --build
 `docker compose up --build` on its own is the one command. It starts PostgreSQL 16, `config-server` on **:8080** and `demo-booking-service` on **:8081**. On an
 empty database the server commits the case-study setting catalog as version 1.
 
-> **Not verified on the build machine:** Docker is not installed there, so the compose file and
-> Dockerfile were written but never executed. Everything below was run.
+> **Verified** with Docker Desktop (Engine 29.9.2, Compose v5.6.1) on Windows 11:
+> - The first `docker compose up --build -d` built and started everything in about 130 s.
+> - PostgreSQL 16.15 and the config server reported healthy; Flyway applied both migrations.
+> - A change was stored in the container's PostgreSQL and pushed to the booking service.
+> - The React frontend (`npm run dev`) worked against the containers unchanged.
+> - Kill test: `docker compose kill config-server` → bookings were still answered from the booking
+>   service's snapshot → `docker compose start config-server` → healthy again in 7 s; the stream
+>   reconnected and the version was intact.
+>
+> Stop with `docker compose down` (add `-v` to also delete the database volume).
 
 ### Without Docker
 
@@ -324,11 +332,10 @@ Let K = settings, O = overrides, o_k = overrides of one key, E = events retained
 
 ## 7. Limitations and manual steps
 
-- **Docker path not executed** (no Docker on the build machine). To verify:
-  1. `docker compose up --build`
-  2. `scripts/demo.sh`
-  3. Kill test: `docker compose kill config-server && sleep 5 && docker compose start config-server`
-- Integration tests ran on embedded PostgreSQL **14.22**; compose uses **16**. The SQL is plain
+- The Docker stack covers the backend (PostgreSQL, config server, booking service). The frontend runs
+  separately with `npm run dev` / `npm run preview` in `frontend/` and reaches the containers through its proxy.
+- Integration tests ran on embedded PostgreSQL **14.22**; compose uses **16** (verified with 16.15), and the
+  local-PostgreSQL option was verified with **17.10**. The SQL is plain
   (no 16-only features).
 - All measurements ran on one laptop, with client and server competing for the same CPU.
 - Metrics need an OPERATOR bearer token, and tokens expire after 1 h. A production Prometheus would
