@@ -1,4 +1,8 @@
 spring:
+  config:
+    # Local runs read secrets from the git-ignored .env in the working directory (KEY=value lines).
+    # Real environment variables take precedence; in Docker and tests there is no such file.
+    import: optional:file:.env[.properties]
   application:
     name: demo-booking-service
   threads:
@@ -13,8 +17,8 @@ server:
 config:
   server-url: ${CONFIG_SERVER_URL:http://localhost:8080}
   username: ${CONFIG_SERVICE_USER:booking-service}
-  # required, from the environment / .env (no default is committed)
-  password: ${CONFIG_SERVICE_PASSWORD}
+  # required: CONFIG_SERVICE_PASSWORD, or DEMO_SERVICE_PASSWORD from .env (no default is committed)
+  password: ${CONFIG_SERVICE_PASSWORD:${DEMO_SERVICE_PASSWORD}}
   snapshot-file: ${CONFIG_SNAPSHOT_FILE:./data/booking-config.snapshot.json}
   poll-interval: PT2S
 

@@ -1,4 +1,8 @@
 spring:
+  config:
+    # Local runs read secrets from the git-ignored .env in the working directory (KEY=value lines).
+    # Real environment variables take precedence; in Docker and tests there is no such file.
+    import: optional:file:.env[.properties]
   application:
     name: config-server
   threads:

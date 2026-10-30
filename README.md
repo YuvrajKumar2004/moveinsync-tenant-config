@@ -44,6 +44,20 @@ scripts/run-local.sh stop
 config server, for the failure demo. Requirements: JDK 21+ (built and tested on JDK 25.0.1) and
 bash + curl (Git Bash on Windows).
 
+### From IntelliJ IDEA (one click)
+
+1. Open the root `pom.xml` as a project.
+2. Run `scripts/init-env.sh` once in a Git Bash terminal.
+3. Create a **Compound** run configuration (call it *Whole application*) containing two
+   **Application** configurations, both with working directory = the project root:
+   - `ConfigServerApplication` with VM option `-Dspring.profiles.active=local,demo`
+   - `BookingApplication`
+4. Run *Whole application*.
+
+Both apps read their secrets from `.env` in the working directory
+(`spring.config.import=optional:file:.env[.properties]`), so the run configurations need no
+environment variables. Real environment variables still take precedence.
+
 ### Secrets and demo users
 
 No password, password hash or signing key is committed. `scripts/init-env.sh` writes a git-ignored
