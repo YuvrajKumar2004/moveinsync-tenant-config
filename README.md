@@ -292,9 +292,9 @@ Let K = settings, O = overrides, o_k = overrides of one key, E = events retained
   monitoring network. That is not implemented.
 - The booking demo service has no authentication of its own, so its actuator exposes only `health`
   (opt in with `MANAGEMENT_EXPOSURE=health,prometheus`).
-- Commits made before the security hardening contain the old demo passwords, their bcrypt hashes and
-  the fallback signing keys. None of them is accepted by the current code (the users and keys now come
-  only from `.env`). Rewrite or squash that history before publishing if it must not contain them at all.
+- The git history was rewritten to scrub the demo passwords, bcrypt hashes and fallback keys that early
+  commits contained (they now read `REDACTED`). So commits before the security commit cannot log in as
+  demo users; check out the latest commit to run the project.
 
 ## 8. Monitoring (what to look at at 3 AM)
 
