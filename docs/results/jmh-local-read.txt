@@ -1,0 +1,45 @@
+# JMH run 2026-10-30T07:59:33Z on AMD Ryzen 5 5600H (6C/12T), 15.3 GB RAM, Windows 11 build 26300, JDK 25.0.1
+snapshot overrides=34800 definitions=208
+Benchmark                                                (clients)    Mode      Cnt       Score    Error  Units
+LocalReadBenchmark.applyOneChange                              300    avgt        5     177.808 ±  5.165  us/op
+LocalReadBenchmark.clientViewConcurrent4Threads                300    avgt        5      53.126 ±  2.939  ns/op
+LocalReadBenchmark.clientViewTwoKeys                           300    avgt        5      34.487 ± 14.827  ns/op
+LocalReadBenchmark.resolveFallThroughToDefault                 300    avgt        5      12.203 ±  0.467  ns/op
+LocalReadBenchmark.resolveShiftLevel                           300    avgt        5      41.322 ± 10.510  ns/op
+LocalReadBenchmark.clientViewConcurrent4Threads                300  sample  1322611      83.465 ±  1.381  ns/op
+LocalReadBenchmark.clientViewConcurrent4Threads:p0.00          300  sample                  ≈ 0           ns/op
+LocalReadBenchmark.clientViewConcurrent4Threads:p0.50          300  sample              100.000           ns/op
+LocalReadBenchmark.clientViewConcurrent4Threads:p0.90          300  sample              100.000           ns/op
+LocalReadBenchmark.clientViewConcurrent4Threads:p0.95          300  sample              100.000           ns/op
+LocalReadBenchmark.clientViewConcurrent4Threads:p0.99          300  sample              100.000           ns/op
+LocalReadBenchmark.clientViewConcurrent4Threads:p0.999         300  sample              200.000           ns/op
+LocalReadBenchmark.clientViewConcurrent4Threads:p0.9999        300  sample             7200.000           ns/op
+LocalReadBenchmark.clientViewConcurrent4Threads:p1.00          300  sample           514048.000           ns/op
+LocalReadBenchmark.clientViewTwoKeys                           300  sample   283456      65.724 ±  1.148  ns/op
+LocalReadBenchmark.clientViewTwoKeys:p0.00                     300  sample                  ≈ 0           ns/op
+LocalReadBenchmark.clientViewTwoKeys:p0.50                     300  sample              100.000           ns/op
+LocalReadBenchmark.clientViewTwoKeys:p0.90                     300  sample              100.000           ns/op
+LocalReadBenchmark.clientViewTwoKeys:p0.95                     300  sample              100.000           ns/op
+LocalReadBenchmark.clientViewTwoKeys:p0.99                     300  sample              100.000           ns/op
+LocalReadBenchmark.clientViewTwoKeys:p0.999                    300  sample              300.000           ns/op
+LocalReadBenchmark.clientViewTwoKeys:p0.9999                   300  sample             9928.094           ns/op
+LocalReadBenchmark.clientViewTwoKeys:p1.00                     300  sample            27872.000           ns/op
+LocalReadBenchmark.resolveFallThroughToDefault                 300  sample   305782      36.260 ±  1.128  ns/op
+LocalReadBenchmark.resolveFallThroughToDefault:p0.00           300  sample                  ≈ 0           ns/op
+LocalReadBenchmark.resolveFallThroughToDefault:p0.50           300  sample                  ≈ 0           ns/op
+LocalReadBenchmark.resolveFallThroughToDefault:p0.90           300  sample              100.000           ns/op
+LocalReadBenchmark.resolveFallThroughToDefault:p0.95           300  sample              100.000           ns/op
+LocalReadBenchmark.resolveFallThroughToDefault:p0.99           300  sample              100.000           ns/op
+LocalReadBenchmark.resolveFallThroughToDefault:p0.999          300  sample              200.000           ns/op
+LocalReadBenchmark.resolveFallThroughToDefault:p0.9999         300  sample             5380.340           ns/op
+LocalReadBenchmark.resolveFallThroughToDefault:p1.00           300  sample            41664.000           ns/op
+LocalReadBenchmark.resolveShiftLevel                           300  sample   258470      58.399 ±  1.213  ns/op
+LocalReadBenchmark.resolveShiftLevel:p0.00                     300  sample                  ≈ 0           ns/op
+LocalReadBenchmark.resolveShiftLevel:p0.50                     300  sample              100.000           ns/op
+LocalReadBenchmark.resolveShiftLevel:p0.90                     300  sample              100.000           ns/op
+LocalReadBenchmark.resolveShiftLevel:p0.95                     300  sample              100.000           ns/op
+LocalReadBenchmark.resolveShiftLevel:p0.99                     300  sample              100.000           ns/op
+LocalReadBenchmark.resolveShiftLevel:p0.999                    300  sample              400.000           ns/op
+LocalReadBenchmark.resolveShiftLevel:p0.9999                   300  sample             8800.000           ns/op
+LocalReadBenchmark.resolveShiftLevel:p1.00                     300  sample            32960.000           ns/op
+

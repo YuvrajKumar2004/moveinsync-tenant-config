@@ -1,0 +1,25 @@
+2026-10-30T07:32:30.387134500Z missed-push healing (push dropped by fault): 1293.1 ms, pollHeals=0 heartbeatHeals=1
+2026-10-30T07:33:40.569834600Z kill-the-server: 2638174 reads served during outage, cold start from disk ok, all clients had the pre-crash change 1605 ms after server start returned
+2026-10-30T07:34:14.553223900Z duplicate+out-of-order pushes: staleDropped=20 gaps=0 finalVersion=21
+2026-10-30T07:34:48.723819800Z atomic change-set reads over network: reads=942311 flips=40 mixed=null
+2026-10-30T07:35:22.412505900Z e2e push propagation (1 client, commit->visible): 138.8 ms
+2026-10-30T07:41:30.819460100Z missed-push healing (push dropped by fault): 1292.7 ms, pollHeals=0 heartbeatHeals=1
+2026-10-30T07:41:36.669892600Z kill-the-server: 2503140 reads served during outage, cold start from disk ok, all clients had the pre-crash change 1741 ms after server start returned
+2026-10-30T07:41:38.636278900Z duplicate+out-of-order pushes: staleDropped=20 gaps=0 finalVersion=21
+2026-10-30T07:41:40.981078800Z atomic change-set reads over network: reads=1103914 flips=40 mixed=null
+2026-10-30T07:41:42.630604100Z e2e push propagation (1 client, commit->visible): 117.0 ms
+2026-10-30T07:46:48.312178Z missed-push healing (push dropped by fault): 1536.8 ms, pollHeals=1 heartbeatHeals=0
+2026-10-30T07:46:53.835196300Z kill-the-server: 1632260 reads served during outage, cold start from disk ok, all clients had the pre-crash change 1508 ms after server start returned
+2026-10-30T07:46:55.793106800Z duplicate+out-of-order pushes: staleDropped=20 gaps=0 finalVersion=21
+2026-10-30T07:46:57.867939400Z atomic change-set reads over network: reads=511018 flips=40 mixed=null
+2026-10-30T07:46:59.606115800Z e2e push propagation (1 client, commit->visible): 124.9 ms
+2026-10-30T07:47:06.625385Z propagation to 200 clients over 20 changes: per-client n=4000 min=4.15ms p50=10.49ms p90=17.19ms p99=27.72ms max=29.05ms mean=11.72ms | worst-per-change n=20 min=9.71ms p50=13.23ms p90=21.18ms p99=29.05ms max=29.05ms mean=14.84ms | missed=0
+2026-10-30T07:51:58.152382Z missed-push healing (push dropped by fault): 1287.9 ms, pollHeals=0 heartbeatHeals=1
+2026-10-30T07:52:04.424356900Z kill-the-server: 2106948 reads served during outage, cold start from disk ok, all clients had the pre-crash change 1812 ms after server start returned
+2026-10-30T07:52:10.181039200Z duplicate+out-of-order pushes: staleDropped=20 gaps=0 finalVersion=21
+2026-10-30T07:52:13.886525500Z atomic change-set reads over network: reads=1498725 flips=40 mixed=null
+2026-10-30T07:52:15.909231800Z e2e push propagation (1 client, commit->visible): 118.3 ms
+2026-10-30T07:52:21.707009200Z propagation to 200 clients over 20 changes: per-client n=4000 min=3.92ms p50=12.13ms p90=17.63ms p99=42.67ms max=47.96ms mean=13.62ms | worst-per-change n=20 min=9.71ms p50=14.89ms p90=18.60ms p99=47.96ms max=47.96ms mean=16.02ms | missed=0
+2026-10-30T07:52:49.371397900Z reconnect storm: 500 clients, server down 3s; all caught up=true in 8815 ms; all streams back in 10594 ms; visibility after restart n=500 min=806.56ms p50=2193.77ms p90=4832.34ms p99=7200.87ms max=8814.72ms mean=2619.85ms; server sync answers: events=281 empty=0 full=0; client full snapshots during storm=0; handshake rejections=0; 5xx (non-503)=0; subscribers=500
+2026-10-30T07:59:02.484580800Z GET /api/v1/resolve (explain): threads=32 duration=15.0s requests=203013 errors=0 throughput=13534 req/s latency n=203013 min=0.46ms p50=1.85ms p90=3.89ms p99=9.57ms max=63.79ms mean=2.35ms
+2026-10-30T07:59:15.502277900Z POST /api/v1/change-sets: threads=8 duration=10.0s requests=13439 errors=0 throughput=1344 req/s latency n=13439 min=3.69ms p50=5.77ms p90=6.67ms p99=7.68ms max=10.18ms mean=5.94ms

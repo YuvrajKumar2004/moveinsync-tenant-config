@@ -1,0 +1,60 @@
+# One command: docker compose up --build
+# Starts PostgreSQL, the config server (:8080) and the demo booking service (:8081).
+# All credentials below are local-demo defaults; override them through environment variables.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: config
+      POSTGRES_USER: config
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-REDACTED}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U config -d config"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  config-server:
+    build:
+      context: .
+      target: config-server
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/config
+      DB_USER: config
+      DB_PASSWORD: ${DB_PASSWORD:-REDACTED}
+      JWT_SECRET: ${JWT_SECRET:-REDACTED}
+      SPRING_PROFILES_ACTIVE: demo
+      FAULTS_ENABLED: ${FAULTS_ENABLED:-true}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  booking-service:
+    build:
+      context: .
+      target: demo-booking-service
+    environment:
+      CONFIG_SERVER_URL: http://config-server:8080
+      CONFIG_SERVICE_USER: booking-service
+      CONFIG_SERVICE_PASSWORD: ${CONFIG_SERVICE_PASSWORD:-REDACTED}
+      CONFIG_SNAPSHOT_FILE: /app/data/booking-config.snapshot.json
+    ports:
+      - "8081:8081"
+    depends_on:
+      config-server:
+        condition: service_healthy
+    volumes:
+      - booking-data:/app/data
+
+volumes:
+  pgdata:
+  booking-data:

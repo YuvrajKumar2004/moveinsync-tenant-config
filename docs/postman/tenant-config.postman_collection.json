@@ -1,0 +1,101 @@
+{
+  "info": {
+    "name": "Hierarchical Tenant Configuration",
+    "description": "Run 'Auth' first: each login stores its token in a collection variable. Works against docker compose or scripts/run-local.sh.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "bookingUrl", "value": "http://localhost:8081" },
+    { "key": "operatorToken", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "employeeToken", "value": "" },
+    { "key": "serviceToken", "value": "" },
+    { "key": "rolloutVersion", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        { "name": "Login operator", "event": [{ "listen": "test", "script": { "exec": ["pm.collectionVariables.set('operatorToken', pm.response.json().accessToken);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/auth/token",
+            "body": { "mode": "raw", "raw": "{\"username\":\"operator\",\"password\":\"REDACTED\"}" } } },
+        { "name": "Login acme-admin", "event": [{ "listen": "test", "script": { "exec": ["pm.collectionVariables.set('adminToken', pm.response.json().accessToken);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/auth/token",
+            "body": { "mode": "raw", "raw": "{\"username\":\"acme-admin\",\"password\":\"REDACTED\"}" } } },
+        { "name": "Login acme-employee", "event": [{ "listen": "test", "script": { "exec": ["pm.collectionVariables.set('employeeToken', pm.response.json().accessToken);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/auth/token",
+            "body": { "mode": "raw", "raw": "{\"username\":\"acme-employee\",\"password\":\"REDACTED\"}" } } },
+        { "name": "Login booking-service", "event": [{ "listen": "test", "script": { "exec": ["pm.collectionVariables.set('serviceToken', pm.response.json().accessToken);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/api/v1/auth/token",
+            "body": { "mode": "raw", "raw": "{\"username\":\"booking-service\",\"password\":\"REDACTED\"}" } } }
+      ]
+    },
+    {
+      "name": "Settings & resolution",
+      "item": [
+        { "name": "List definitions", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }], "url": "{{baseUrl}}/api/v1/definitions" } },
+        { "name": "Explain blr-1 cut-off", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }],
+          "url": "{{baseUrl}}/api/v1/resolve?clientId=acme&officeId=blr-1&key=booking.cutoff&explain=true" } },
+        { "name": "Define a new setting (operator)", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+          "url": "{{baseUrl}}/api/v1/definitions",
+          "body": { "mode": "raw", "raw": "{\"key\":\"pickup.grace\",\"type\":\"DURATION\",\"rules\":{\"min\":\"PT0M\",\"max\":\"PT15M\"},\"defaultValue\":\"PT5M\",\"description\":\"Driver wait time\",\"reason\":\"new setting\"}" } } }
+      ]
+    },
+    {
+      "name": "Change sets",
+      "item": [
+        { "name": "Set blr-1 cut-off to 30m", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }, { "key": "Content-Type", "value": "application/json" }, { "key": "Idempotency-Key", "value": "{{$guid}}" }],
+          "url": "{{baseUrl}}/api/v1/change-sets",
+          "body": { "mode": "raw", "raw": "{\"reason\":\"shorter cut-off\",\"ops\":[{\"op\":\"SET\",\"level\":\"OFFICE\",\"clientId\":\"acme\",\"officeId\":\"blr-1\",\"key\":\"booking.cutoff\",\"value\":\"30m\"}]}" } } },
+        { "name": "Rejected: negative cut-off", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+          "url": "{{baseUrl}}/api/v1/change-sets",
+          "body": { "mode": "raw", "raw": "{\"reason\":\"bad\",\"ops\":[{\"op\":\"SET\",\"level\":\"OFFICE\",\"clientId\":\"acme\",\"officeId\":\"blr-1\",\"key\":\"booking.cutoff\",\"value\":\"-30m\"}]}" } } },
+        { "name": "Atomic night window (both ends)", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+          "url": "{{baseUrl}}/api/v1/change-sets",
+          "body": { "mode": "raw", "raw": "{\"reason\":\"night window\",\"ops\":[{\"op\":\"SET\",\"level\":\"CLIENT\",\"clientId\":\"acme\",\"key\":\"night.window.start\",\"value\":\"22:00\"},{\"op\":\"SET\",\"level\":\"CLIENT\",\"clientId\":\"acme\",\"key\":\"night.window.end\",\"value\":\"05:00\"}]}" } } },
+        { "name": "History", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }], "url": "{{baseUrl}}/api/v1/change-sets?limit=20" } }
+      ]
+    },
+    {
+      "name": "Safe changes",
+      "item": [
+        { "name": "Stage to two offices", "event": [{ "listen": "test", "script": { "exec": ["pm.collectionVariables.set('rolloutVersion', pm.response.json().version);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+          "url": "{{baseUrl}}/api/v1/rollouts",
+          "body": { "mode": "raw", "raw": "{\"reason\":\"pilot\",\"targets\":[{\"clientId\":\"acme\",\"officeId\":\"blr-1\"},{\"clientId\":\"acme\",\"officeId\":\"hyd-1\"}],\"items\":[{\"op\":\"SET\",\"level\":\"GLOBAL\",\"key\":\"ride.max-duration\",\"value\":\"100m\"}]}" } } },
+        { "name": "Promote rollout", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+          "url": "{{baseUrl}}/api/v1/rollouts/{{rolloutVersion}}/promote", "body": { "mode": "raw", "raw": "{\"reason\":\"pilot ok\"}" } } },
+        { "name": "Rollback acme (dry run)", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+          "url": "{{baseUrl}}/api/v1/rollback", "body": { "mode": "raw", "raw": "{\"level\":\"CLIENT\",\"clientId\":\"acme\",\"toVersion\":1,\"reason\":\"undo\",\"dryRun\":true}" } } },
+        { "name": "Rollback acme (apply)", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+          "url": "{{baseUrl}}/api/v1/rollback", "body": { "mode": "raw", "raw": "{\"level\":\"CLIENT\",\"clientId\":\"acme\",\"toVersion\":1,\"reason\":\"undo\"}" } } }
+      ]
+    },
+    {
+      "name": "Isolation (expect 403)",
+      "item": [
+        { "name": "acme-admin writes globex", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+          "url": "{{baseUrl}}/api/v1/change-sets",
+          "body": { "mode": "raw", "raw": "{\"reason\":\"x\",\"ops\":[{\"op\":\"SET\",\"level\":\"OFFICE\",\"clientId\":\"globex\",\"officeId\":\"pune-1\",\"key\":\"booking.cutoff\",\"value\":\"5m\"}]}" } } },
+        { "name": "acme-employee reads globex", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{employeeToken}}" }],
+          "url": "{{baseUrl}}/api/v1/resolve?clientId=globex&key=booking.cutoff" } }
+      ]
+    },
+    {
+      "name": "Sync & ops",
+      "item": [
+        { "name": "Version", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{serviceToken}}" }], "url": "{{baseUrl}}/api/v1/sync/version" } },
+        { "name": "Delta since 1", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{serviceToken}}" }], "url": "{{baseUrl}}/api/v1/sync/delta?since=1" } },
+        { "name": "Drop pushes (fault)", "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+          "url": "{{baseUrl}}/api/v1/admin/faults", "body": { "mode": "raw", "raw": "{\"dropPushes\":true,\"duplicatePushes\":false,\"outOfOrderPushes\":false}" } } },
+        { "name": "Clear faults", "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+          "url": "{{baseUrl}}/api/v1/admin/faults", "body": { "mode": "raw", "raw": "{\"dropPushes\":false,\"duplicatePushes\":false,\"outOfOrderPushes\":false}" } } },
+        { "name": "Prometheus metrics", "request": { "method": "GET", "url": "{{baseUrl}}/actuator/prometheus" } },
+        { "name": "Book 45 min ahead at blr-1", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "url": "{{bookingUrl}}/bookings", "body": { "mode": "raw", "raw": "{\"clientId\":\"acme\",\"officeId\":\"blr-1\",\"minutesBeforeDeparture\":45}" } } },
+        { "name": "Booking service config status", "request": { "method": "GET", "url": "{{bookingUrl}}/config/status" } }
+      ]
+    }
+  ]
+}

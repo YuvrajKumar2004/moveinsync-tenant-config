@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: demo-booking-service
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${PORT:8081}
+  error:
+    include-stacktrace: never
+
+config:
+  server-url: ${CONFIG_SERVER_URL:http://localhost:8080}
+  username: ${CONFIG_SERVICE_USER:booking-service}
+  # demo-only default; set CONFIG_SERVICE_PASSWORD in any shared environment
+  password: ${CONFIG_SERVICE_PASSWORD:REDACTED}
+  snapshot-file: ${CONFIG_SNAPSHOT_FILE:./data/booking-config.snapshot.json}
+  poll-interval: PT2S
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,metrics
+
+logging:
+  structured:
+    format:
+      console: ${LOG_FORMAT:}
