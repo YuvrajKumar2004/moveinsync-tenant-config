@@ -21,7 +21,7 @@ flowchart LR
         HUB --> STATE
     end
     subgraph SVC1[each of the 40 services]
-        APP[business code] -- "view(ctx).duration(key)<br/>~10-20 ns, no network" --> CC[config-client<br/>AtomicReference&lt;Snapshot&gt;]
+        APP[business code] -- "view(ctx).duration(key)<br/>~10-20 ns, no network" --> CC[config-client<br/>AtomicReference‹Snapshot›]
         CC -. disk copy .-> DISK[(snapshot.json<br/>sha-256)]
     end
     UI --> API
@@ -43,8 +43,8 @@ sequenceDiagram
     participant DB as PostgreSQL
     participant C as config-client (at v42)
     Op->>S: POST /change-sets {night.window.start=22:00, night.window.end=05:00}
-    S->>S: write lock; validate both ops + TIME_WINDOW_PAIR at every affected scope
-    S->>DB: BEGIN; SELECT current_version FOR UPDATE (=42); INSERT change_set v43; UPDATE version=43; COMMIT
+    S->>S: write lock · validate both ops and TIME_WINDOW_PAIR at every affected scope
+    S->>DB: BEGIN · SELECT current_version FOR UPDATE (=42) · INSERT change_set v43 · UPDATE version=43 · COMMIT
     S->>S: swap in-memory snapshot to v43 (one reference write)
     S-->>Op: 201 {version:43, diff}
     S--xC: SSE change v43 (lost)
