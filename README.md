@@ -7,7 +7,6 @@ MoveInSync case study 2 (SDE Java backend, Advanced Track). It has two parts:
   nanoseconds, and changes arrive within milliseconds via server-sent events, with a periodic version
   check as the safety net.
 
-- **Demo video** (main flows, live update, a failure handled live, sample API calls): [watch on Google Drive](https://drive.google.com/file/d/15eNEJyqELZf5dXYaWjvEZrYVu5sDmGbo/view)
 - Design note (architecture, sequence diagram, consistency model, failure-mode table): [docs/DESIGN.md](docs/DESIGN.md)
 - Requirement-by-requirement checklist with test evidence: [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)
 - Postman collection: [docs/postman/tenant-config.postman_collection.json](docs/postman/tenant-config.postman_collection.json)
@@ -433,3 +432,10 @@ Proxy targets come from `frontend/.env.local`; see `frontend/.env.example`, whic
 - **Tokens and the booking service.**
   - The access token is kept in `sessionStorage` for the tab only. No credentials are bundled with the app.
   - The demo booking service has no authentication of its own.
+
+---
+
+## 10. Demo video
+
+Main flows, a live configuration update, a failure handled live, and sample API calls:
+[watch on Google Drive](https://drive.google.com/file/d/15eNEJyqELZf5dXYaWjvEZrYVu5sDmGbo/view)
